@@ -9,7 +9,8 @@ use iced::{
     alignment, executor, font, theme,
     widget::{
         column, container, horizontal_space, keyed_column, progress_bar, row, scrollable,
-        shader::wgpu::{hal::empty::Resource, naga::proc}, text, text_input, Column, Row, Space,
+        shader::wgpu::{hal::empty::Resource, naga::proc},
+        text, text_input, Column, Row, Space,
     },
     window::{icon, Icon},
     Alignment, Application, Command, Element, Font, Length, Pixels, Renderer, Sandbox, Settings,
@@ -285,7 +286,7 @@ enum SidebarItemParentState {
 pub struct SidebarItemParent {
     header: String,
     metric: String,
-    usage_percent: f32,
+    usage_percent: Option<f32>,
     usage: u64,
     capacity: u64,
     state: SidebarItemParentState,
@@ -302,60 +303,61 @@ impl SidebarItemParent {
         Self {
             resource,
             header,
-            usage_percent: 50.0,
+            usage_percent: None,
             ..Default::default()
         }
     }
 
     fn on_tick(&mut self, system_info: &System, disk_info: &Disks, network_info: &Networks) {
-
-        let (usage , capacity) = match self.resource {
-            ResourceType::Applications => (1, 1),
-            ResourceType::Processes => (1, 1),
+        let resource_result: Option<(u64, u64)> = match self.resource {
+            ResourceType::Applications => None,
+            ResourceType::Processes => None,
             ResourceType::Cpu => {
                 let cpus = system_info.cpus();
                 let mut total_used: f32 = 0.;
                 let mut total_capacity: u64 = 0;
 
                 for cpu in cpus {
-
                     total_used += cpu.cpu_usage();
                     total_capacity += cpu.frequency();
                 }
 
-                (total_used as u64, total_capacity)},
-            ResourceType::Memory => (system_info.used_memory(), system_info.total_memory()),
-            ResourceType::Gpu => (1, 1),
+                Some((total_used as u64, total_capacity))
+            }
+            ResourceType::Memory => Some((system_info.used_memory(), system_info.total_memory())),
+            ResourceType::Gpu => None,
             ResourceType::Disk => {
                 let mut total_read = 0;
                 let mut total_written = 0;
 
                 for (pid, process) in system_info.processes() {
-
                     let disk_usage = process.disk_usage();
 
                     total_read += disk_usage.read_bytes;
                     total_written += disk_usage.written_bytes;
                 }
 
-                (total_read, total_written)
-            },
+                Some((total_read, total_written))
+            }
             ResourceType::Wifi => {
                 let mut total_received = 0;
                 let mut total_transmitted = 0;
 
                 for (interface_name, data) in network_info {
-
                     total_received += data.received();
                     total_transmitted += data.transmitted();
                 }
 
-                (total_received, total_transmitted)
-            },
-            ResourceType::Ethernet => (1, 1),
+                Some((total_received, total_transmitted))
+            }
+            ResourceType::Ethernet => None,
         };
 
-        self.usage_percent = (usage as f32 / capacity as f32) * 100.;
+        let Some((usage, capacity)) = resource_result else {
+            return;
+        };
+
+        self.usage_percent = Some((usage as f32 / capacity as f32) * 100.);
         self.usage = usage;
         self.capacity = capacity;
     }
@@ -372,19 +374,25 @@ impl SidebarItemParent {
             ResourceType::Ethernet => String::from(BootstrapIcon::DiagramTwo),
         };
 
-        let container = container(
-            column![
-                row![
-                    text(icon_text).font(iced_aw::BOOTSTRAP_FONT),
-                    text(self.header.clone()),
-                    text(String::from("metric")).size(10)
-                ]
-                .spacing(10)
-                .align_items(Alignment::Center),
-                row![progress_bar(0.0..=100.0, self.usage_percent)
+        let preview_state = {
+            if let Some(usage_percent) = self.usage_percent {
+                row![progress_bar::<Theme>(0.0..=100.0, usage_percent)
                     .height(5)
-                    .width(Length::Fill)]
+                    .width(Length::Fill)
+                    ]
+            } else {
+                row![/* text(String::from("No bar")) */]
+            }
+        };
+
+        let container = container(
+            column![row![
+                text(icon_text).font(iced_aw::BOOTSTRAP_FONT),
+                text(self.header.clone()),
+                text(String::from("metric")).size(10)
             ]
+            .spacing(10)
+            .align_items(Alignment::Center), preview_state]
             .spacing(5),
         );
         container.into()
