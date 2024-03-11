@@ -9,7 +9,7 @@ use iced::{
     alignment, executor, font, theme,
     widget::{
         column, container, horizontal_space, keyed_column, progress_bar, row, scrollable,
-        shader::wgpu::hal::empty::Resource, text, text_input, Column, Row, Space,
+        shader::wgpu::{hal::empty::Resource, naga::proc}, text, text_input, Column, Row, Space,
     },
     window::{icon, Icon},
     Alignment, Application, Command, Element, Font, Length, Pixels, Renderer, Sandbox, Settings,
@@ -21,6 +21,7 @@ use iced_aw::{
     native::Split,
     split, BootstrapIcon, FloatingElement, NerdIcon, Spinner, NERD_FONT,
 };
+use sysinfo::{Disks, Networks, System};
 
 mod constants;
 
@@ -48,6 +49,9 @@ struct App {
     sidebar_items: Vec<SidebarItemParent>,
     preferences: Preferences,
     tick_interval: u64,
+    system_info: System,
+    disk_info: Disks,
+    network_info: Networks,
     state: AppState,
 }
 
@@ -89,9 +93,12 @@ impl Application for App {
                     println!("loading success");
 
                     self.sidebar_items = vec![
-                        SidebarItemParent::new(ResourceType::Applications, String::from("Hello")),
+                        SidebarItemParent::new(
+                            ResourceType::Applications,
+                            String::from("Applications"),
+                        ),
                         SidebarItemParent::new(ResourceType::Processes, String::from("Processes")),
-                        SidebarItemParent::new(ResourceType::Memory, String::from("Goodbye")),
+                        SidebarItemParent::new(ResourceType::Memory, String::from("Memory")),
                         SidebarItemParent::new(ResourceType::Cpu, String::from("Cpu")),
                         SidebarItemParent::new(ResourceType::Gpu, String::from("Gpu")),
                         SidebarItemParent::new(ResourceType::Disk, String::from("Disk")),
@@ -117,9 +124,14 @@ impl Application for App {
 
         match message {
             Message::Tick => {
+                // Change this to call specific to be more optimal
+                self.system_info = System::new_all();
+                self.disk_info = Disks::new_with_refreshed_list();
+                self.network_info = Networks::new_with_refreshed_list();
+
                 println!("tick");
                 for element in self.sidebar_items.iter_mut() {
-                    element.on_tick();
+                    element.on_tick(&self.system_info, &self.disk_info, &self.network_info);
                 }
             }
             _ => {}
@@ -217,12 +229,14 @@ impl Application for App {
                 })
                 .padding(padding::MAIN);
 
-                let footer = container(row![text(String::from("Footer Text"))])
-                    .style(theme::Container::Box)
-                    .center_y()
-                    .center_x()
-                    .width(Length::Fill)
-                    .padding(padding::MAIN);
+                //     let footer = container(
+                //     row![text(String::from("Footer Text"))]
+                // )
+                //     .style(theme::Container::Box)
+                //     .center_y()
+                //     .center_x()
+                //     .width(Length::Fill)
+                //     .padding(padding::MAIN);
 
                 let main = container(scrollable(column![text("hello".to_string())].spacing(10)))
                     .width(Length::Fill)
@@ -230,7 +244,7 @@ impl Application for App {
                     .padding(padding::MAIN);
 
                 let left = sidebar;
-                let right = column![header, main, footer].width(Length::FillPortion(3));
+                let right = column![header, main /* footer */,].width(Length::FillPortion(3));
 
                 let container = container(
                     FloatingElement::new(row![left, right], floating_content)
@@ -272,6 +286,8 @@ pub struct SidebarItemParent {
     header: String,
     metric: String,
     usage_percent: f32,
+    usage: u64,
+    capacity: u64,
     state: SidebarItemParentState,
     resource: ResourceType,
 }
@@ -291,8 +307,57 @@ impl SidebarItemParent {
         }
     }
 
-    fn on_tick(&mut self) {
-        self.usage_percent = rand::random::<f32>() * 100.;
+    fn on_tick(&mut self, system_info: &System, disk_info: &Disks, network_info: &Networks) {
+
+        let (usage , capacity) = match self.resource {
+            ResourceType::Applications => (1, 1),
+            ResourceType::Processes => (1, 1),
+            ResourceType::Cpu => {
+                let cpus = system_info.cpus();
+                let mut total_used: f32 = 0.;
+                let mut total_capacity: u64 = 0;
+
+                for cpu in cpus {
+
+                    total_used += cpu.cpu_usage();
+                    total_capacity += cpu.frequency();
+                }
+
+                (total_used as u64, total_capacity)},
+            ResourceType::Memory => (system_info.used_memory(), system_info.total_memory()),
+            ResourceType::Gpu => (1, 1),
+            ResourceType::Disk => {
+                let mut total_read = 0;
+                let mut total_written = 0;
+
+                for (pid, process) in system_info.processes() {
+
+                    let disk_usage = process.disk_usage();
+
+                    total_read += disk_usage.read_bytes;
+                    total_written += disk_usage.written_bytes;
+                }
+
+                (total_read, total_written)
+            },
+            ResourceType::Wifi => {
+                let mut total_received = 0;
+                let mut total_transmitted = 0;
+
+                for (interface_name, data) in network_info {
+
+                    total_received += data.received();
+                    total_transmitted += data.transmitted();
+                }
+
+                (total_received, total_transmitted)
+            },
+            ResourceType::Ethernet => (1, 1),
+        };
+
+        self.usage_percent = (usage as f32 / capacity as f32) * 100.;
+        self.usage = usage;
+        self.capacity = capacity;
     }
 
     fn view(&self, i: usize) -> Element<SidebarItemParentMessage> {
