@@ -6,7 +6,10 @@ license = "GPL-3"
 resolver = "2"
 
 [dependencies]
-iced = { version = "0.12.1", features = ["advanced"] }
+iced = { version = "0.12.1", features = ["advanced", "canvas", "tokio"] }
 iced_aw = { version = "0.8.0", default-features = false, features = ["icons", "split", "spinner", "menu", "tab_bar", "floating_element"] }
 rand = "0.8.5"
 sysinfo = "0.30.7"
+# nvml = "0.0.2"
+plotters-iced = "0.10"
+plotters = "0.3.5"

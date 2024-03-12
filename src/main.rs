@@ -22,9 +22,12 @@ use iced_aw::{
     native::Split,
     split, BootstrapIcon, FloatingElement, NerdIcon, Spinner, NERD_FONT,
 };
-use sysinfo::{Disks, Networks, System};
+use resource_details::resource_details::{ResourceDetails, ResourceDetailsMessage};
+use sysinfo::{CpuRefreshKind, Disks, Networks, RefreshKind, System};
 
 mod constants;
+mod resource_details;
+mod resource_previews;
 
 pub fn main() -> iced::Result {
     App::run(Settings::default())
@@ -35,6 +38,7 @@ enum Message {
     FontLoaded(Result<(), font::Error>),
     Loaded(Result<(), String>),
     SidebarItemParentMessage(usize, SidebarItemParentMessage),
+    ResourceDetailsMessage(ResourceDetailsMessage),
     Tick,
 }
 
@@ -49,6 +53,7 @@ enum AppState {
 struct App {
     sidebar_items: Vec<SidebarItemParent>,
     preferences: Preferences,
+    main_content: ResourceDetails,
     tick_interval: u64,
     system_info: System,
     disk_info: Disks,
@@ -99,8 +104,8 @@ impl Application for App {
                             String::from("Applications"),
                         ),
                         SidebarItemParent::new(ResourceType::Processes, String::from("Processes")),
-                        SidebarItemParent::new(ResourceType::Memory, String::from("Memory")),
                         SidebarItemParent::new(ResourceType::Cpu, String::from("Cpu")),
+                        SidebarItemParent::new(ResourceType::Memory, String::from("Memory")),
                         SidebarItemParent::new(ResourceType::Gpu, String::from("Gpu")),
                         SidebarItemParent::new(ResourceType::Disk, String::from("Disk")),
                         SidebarItemParent::new(ResourceType::Wifi, String::from("Wifi")),
@@ -134,6 +139,8 @@ impl Application for App {
                 for element in self.sidebar_items.iter_mut() {
                     element.on_tick(&self.system_info, &self.disk_info, &self.network_info);
                 }
+
+                self.main_content.on_tick();
             }
             _ => {}
         }
@@ -211,24 +218,24 @@ impl Application for App {
                     .width(Length::Shrink)
                     .max_width(200);
 
-                let header = container(row![
-                    horizontal_space(),
-                    text(String::from("Switcher"))
-                        .size(20)
-                        .font(Font::MONOSPACE),
-                    horizontal_space(),
-                    text(iced_aw::graphics::icons::BootstrapIcon::Dash.to_string())
-                        .font(iced_aw::BOOTSTRAP_FONT),
-                    text(iced_aw::graphics::icons::BootstrapIcon::X.to_string())
-                        .font(iced_aw::BOOTSTRAP_FONT),
-                ])
-                .width(Length::Fill)
-                .style(|theme: &Theme| {
-                    let palette = theme.extended_palette();
+                // let header = container(row![
+                //     horizontal_space(),
+                //     text(String::from("Switcher"))
+                //         .size(20)
+                //         .font(Font::MONOSPACE),
+                //     horizontal_space(),
+                //     text(iced_aw::graphics::icons::BootstrapIcon::Dash.to_string())
+                //         .font(iced_aw::BOOTSTRAP_FONT),
+                //     text(iced_aw::graphics::icons::BootstrapIcon::X.to_string())
+                //         .font(iced_aw::BOOTSTRAP_FONT),
+                // ])
+                // .width(Length::Fill)
+                // .style(|theme: &Theme| {
+                //     let palette = theme.extended_palette();
 
-                    container::Appearance::default().with_border(palette.background.strong.color, 1)
-                })
-                .padding(padding::MAIN);
+                //     container::Appearance::default().with_border(palette.background.strong.color, 1)
+                // })
+                // .padding(padding::MAIN);
 
                 //     let footer = container(
                 //     row![text(String::from("Footer Text"))]
@@ -239,13 +246,19 @@ impl Application for App {
                 //     .width(Length::Fill)
                 //     .padding(padding::MAIN);
 
-                let main = container(scrollable(column![text("hello".to_string())].spacing(10)))
-                    .width(Length::Fill)
-                    .height(Length::Fill)
-                    .padding(padding::MAIN);
+                let main = container(scrollable(
+                    column![self
+                        .main_content
+                        .view()
+                        .map(move |message| Message::ResourceDetailsMessage(message))]
+                    .spacing(10),
+                ))
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .padding(padding::MAIN);
 
                 let left = sidebar;
-                let right = column![header, main /* footer */,].width(Length::FillPortion(3));
+                let right = column![/* header, */ main /* footer */,].width(Length::FillPortion(3));
 
                 let container = container(
                     FloatingElement::new(row![left, right], floating_content)
@@ -285,7 +298,7 @@ enum SidebarItemParentState {
 #[derive(Debug, Default)]
 pub struct SidebarItemParent {
     header: String,
-    metric: String,
+    description: String,
     usage_percent: Option<f32>,
     usage: u64,
     capacity: u64,
@@ -315,14 +328,14 @@ impl SidebarItemParent {
             ResourceType::Cpu => {
                 let cpus = system_info.cpus();
                 let mut total_used: f32 = 0.;
-                let mut total_capacity: u64 = 0;
 
                 for cpu in cpus {
                     total_used += cpu.cpu_usage();
-                    total_capacity += cpu.frequency();
                 }
 
-                Some((total_used as u64, total_capacity))
+                println!("cpu, total used {}", total_used);
+
+                Some((total_used as u64, 1))
             }
             ResourceType::Memory => Some((system_info.used_memory(), system_info.total_memory())),
             ResourceType::Gpu => None,
@@ -336,6 +349,11 @@ impl SidebarItemParent {
                     total_read += disk_usage.read_bytes;
                     total_written += disk_usage.written_bytes;
                 }
+
+                println!(
+                    "disk, total read {}, total written {}",
+                    total_read, total_written
+                );
 
                 Some((total_read, total_written))
             }
@@ -363,6 +381,17 @@ impl SidebarItemParent {
     }
 
     fn view(&self, i: usize) -> Element<SidebarItemParentMessage> {
+        match self.resource {
+            ResourceType::Applications => String::from(BootstrapIcon::WindowStack),
+            ResourceType::Processes => String::from(BootstrapIcon::PersonWorkspace),
+            ResourceType::Cpu => String::from(BootstrapIcon::Cpu),
+            ResourceType::Memory => String::from(BootstrapIcon::Memory),
+            ResourceType::Gpu => String::from(BootstrapIcon::GpuCard),
+            ResourceType::Disk => String::from(BootstrapIcon::Hdd),
+            ResourceType::Wifi => String::from(BootstrapIcon::Wifi),
+            ResourceType::Ethernet => String::from(BootstrapIcon::DiagramTwo),
+        };
+
         let icon_text = match self.resource {
             ResourceType::Applications => String::from(BootstrapIcon::WindowStack),
             ResourceType::Processes => String::from(BootstrapIcon::PersonWorkspace),
@@ -378,21 +407,23 @@ impl SidebarItemParent {
             if let Some(usage_percent) = self.usage_percent {
                 row![progress_bar::<Theme>(0.0..=100.0, usage_percent)
                     .height(5)
-                    .width(Length::Fill)
-                    ]
+                    .width(Length::Fill)]
             } else {
                 row![/* text(String::from("No bar")) */]
             }
         };
 
         let container = container(
-            column![row![
-                text(icon_text).font(iced_aw::BOOTSTRAP_FONT),
-                text(self.header.clone()),
-                text(String::from("metric")).size(10)
+            column![
+                row![
+                    text(icon_text).font(iced_aw::BOOTSTRAP_FONT),
+                    text(self.header.clone()),
+                    text(String::from("metric")).size(10)
+                ]
+                .spacing(10)
+                .align_items(Alignment::Center),
+                preview_state
             ]
-            .spacing(10)
-            .align_items(Alignment::Center), preview_state]
             .spacing(5),
         );
         container.into()
