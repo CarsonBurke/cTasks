@@ -1,3 +1,5 @@
+use std::borrow::BorrowMut;
+
 use iced::{
     advanced::graphics::futures::backend::default,
     theme,
@@ -8,6 +10,7 @@ use iced::{
     Alignment, Element, Length, Theme,
 };
 use iced_aw::{grid, grid_row, Grid, GridRow};
+use ordered_float::OrderedFloat;
 use sysinfo::{MemoryRefreshKind, Process, ProcessRefreshKind, RefreshKind, System};
 
 use crate::ResourceType;
@@ -30,7 +33,52 @@ pub struct ProcessDetails {
 #[derive(Debug)]
 pub struct ProcessesDetails {
     pub processes: Vec<ProcessDetails>,
-    pub sort_index: i32,
+    pub sort_index: u32,
+    pub sort_ascending: bool,
+}
+
+impl ProcessesDetails {
+    pub fn sort_by_index(&mut self) {
+        match self.sort_index {
+            1 => self
+                .processes
+                .sort_by_key(|process| OrderedFloat(process.cpu_usage)),
+            2 => self.processes.sort_by_key(|process| process.memory_usage),
+            3 => self.processes.sort_by_key(|process| process.disk_read),
+            4 => self.processes.sort_by_key(|process| process.disk_written),
+            _ => (), // No sorting
+        }
+    }
+}
+
+struct ProcessesDetailsProcs;
+
+impl ProcessesDetailsProcs {
+    pub fn sort_by_index(
+        processes: &mut Vec<ProcessDetails>,
+        sort_index: u32,
+        sort_ascending: bool,
+    ) {
+        match sort_index {
+            1 => {
+                processes.sort_by_key(|process| OrderedFloat(process.cpu_usage));
+                processes.reverse()
+            }
+            2 => {
+                processes.sort_by_key(|process| process.memory_usage);
+                processes.reverse()
+            }
+            3 => {
+                processes.sort_by_key(|process| process.disk_read);
+                processes.reverse()
+            }
+            4 => {
+                processes.sort_by_key(|process| process.disk_written);
+                processes.reverse()
+            }
+            _ => (), // No sorting
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -79,7 +127,19 @@ impl ResourceDetails {
                     })
                 }
 
-                self.processes_details = Some(ProcessesDetails { processes });
+                if let Some(processes_details) = &self.processes_details {
+                    ProcessesDetailsProcs::sort_by_index(
+                        &mut processes,
+                        processes_details.sort_index,
+                        processes_details.sort_ascending,
+                    );
+                }
+
+                self.processes_details = Some(ProcessesDetails {
+                    processes,
+                    sort_index: 2,
+                    sort_ascending: false,
+                });
             }
             ResourceType::Memory => {
                 let system_info = System::new_with_specifics(
@@ -119,14 +179,25 @@ impl ResourceDetails {
                     .style(theme::Container::Box)
                     .width(Length::Fill);
 
-                let processes_headers = grid_row!(
-                    text("Name"),
-                    text("CPU"),
-                    text("Memory"),
-                    text("Disk Read"),
-                    text("Disk Written"),
-                    text("Kill")
-                );
+                let processes_header_strings =
+                    vec!["Name", "CPU", "Memory", "Disk Read", "Disk Written", "Kill"];
+
+                let processes_headers = GridRow::with_elements({
+                    let mut elements = Vec::new();
+
+                    let mut i: u32 = 0;
+                    for string in processes_header_strings {
+                        if i == processes_details.sort_index {
+                            elements.push(text(format!["{} ▼", string]))
+                        } else {
+                            elements.push(text(string));
+                        }
+
+                        i += 1;
+                    }
+
+                    elements
+                });
 
                 // let processes: Element<_> = {
                 //     keyed_column(processes_details.processes.iter().enumerate().map(
@@ -197,19 +268,33 @@ impl ResourceDetails {
                     let mut rows = Vec::new();
                     rows.push(processes_headers);
 
+                    // processes_details.processes.sort_by(|a, b| {
+                    //     a.
+                    // });
+
                     for process_details in &processes_details.processes {
                         rows.push(grid_row!(
                             text(format!["{}", process_details.name]),
                             text(format!["{}", process_details.cpu_usage]),
-                            text(format!["{}", process_details.memory_usage]),
-                            text(format!["{}", process_details.disk_read]),
-                            text(format!["{}", process_details.disk_written]),
+                            text(format![
+                                "{:.2} MB",
+                                process_details.memory_usage as f64 / 1024. / 1024.
+                            ]),
+                            text(format![
+                                "{:.2} MB",
+                                process_details.disk_read as f64 / 1024. / 1024.
+                            ]),
+                            text(format![
+                                "{:.2} MB",
+                                process_details.disk_written as f64 / 1024. / 1024.
+                            ]),
                             button(text("Kill")),
                         ))
                     }
 
                     rows
-                }).column_width(Length::Shrink);
+                })
+                .column_width(Length::Shrink);
 
                 // let main =
                 //     grid!(grid_row!(processes_headers), grid_row!(processes)).width(Length::Shrink);
