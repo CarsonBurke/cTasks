@@ -112,6 +112,8 @@ impl Application for App {
                         SidebarItemParent::new(ResourceType::Ethernet, String::from("Ethernet")),
                     ];
                     self.state = AppState::Loaded;
+
+                    self.main_content = ResourceDetails::new(ResourceType::Processes);
                 }
                 Message::Loaded(Err(_)) => {
                     println!("loading failure");
@@ -275,7 +277,7 @@ impl Application for App {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 enum ResourceType {
     #[default]
     Applications,
@@ -349,11 +351,6 @@ impl SidebarItemParent {
                     total_read += disk_usage.read_bytes;
                     total_written += disk_usage.written_bytes;
                 }
-
-                println!(
-                    "disk, total read {}, total written {}",
-                    total_read, total_written
-                );
 
                 Some((total_read, total_written))
             }

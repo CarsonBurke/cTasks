@@ -1270,6 +1270,7 @@ checksum = "129deba9897243dd59c2038e2267a691e392c94e569680066ee63b1164429490"
 dependencies = [
  "cfg-if",
  "iced",
+ "itertools",
 ]
 
 [[package]]

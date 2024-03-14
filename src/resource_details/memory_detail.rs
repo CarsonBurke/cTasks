@@ -14,10 +14,10 @@ pub enum MemoryDetailsMessage {
 
 #[derive(Debug, Default)]
 pub struct MemoryDetails {
-    ram_usage: u64,
-    ram_total: u64,
-    swap_usage: u64,
-    swap_total: u64,
+    pub ram_usage: u64,
+    pub ram_total: u64,
+    pub swap_usage: u64,
+    pub swap_total: u64,
 }
 
 impl MemoryDetails {
