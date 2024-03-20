@@ -1,6 +1,6 @@
-use std::time::Duration;
+use std::{env, time::Duration};
 
-use constants::{padding, DisplayState};
+use constants::{padding, DisplayState, PERCENT_PRECISION};
 use iced::{
     advanced::{
         graphics::{futures::backend::default, text::cosmic_text::SwashImage},
@@ -23,14 +23,29 @@ use iced_aw::{
     split, BootstrapIcon, FloatingElement, NerdIcon, Spinner, NERD_FONT,
 };
 use resource_details::resource_details::{ResourceDetails, ResourceDetailsMessage};
-use sysinfo::{CpuRefreshKind, Disks, Networks, RefreshKind, System};
+use sysinfo::{Cpu, CpuRefreshKind, Disks, MemoryRefreshKind, Networks, ProcessRefreshKind, RefreshKind, System, UpdateKind};
 
 mod constants;
 mod resource_details;
 mod resource_previews;
 
 pub fn main() -> iced::Result {
+    // env::set_var("RUST_BACKTRACE", "1");
     App::run(Settings::default())
+}
+
+#[derive(Debug, Default, Clone)]
+// Consider a vec format instead, due to performance in displaying graphs (presumably they take in an array of values)
+// However a vec format will probably have to handle skipped ticks by reformatting the vector, which might ruin any performance benefits
+pub struct ResourceHistoryTick {
+    pub tick: u64,
+    pub cpu_usage_percent: f32,
+    pub cpu_cores_usage_percent: f32,
+    pub gpu_usage_percent: f32,
+    pub vram_usage: f32,
+    pub memory_usage_percent: f32,
+    pub disk_write: f32,
+    pub disk_read: f32,
 }
 
 #[derive(Debug, Clone)]
@@ -56,9 +71,12 @@ struct App {
     main_content: ResourceDetails,
     tick_interval: u64,
     system_info: System,
+    cpu_count: u32,
     disk_info: Disks,
     network_info: Networks,
     state: AppState,
+    tick: u64,
+    history: Vec<ResourceHistoryTick>,
 }
 
 async fn load() -> Result<(), String> {
@@ -72,11 +90,18 @@ impl Application for App {
     type Flags = ();
 
     fn new(_flags: ()) -> (Self, Command<Message>) {
+        let system_info = System::new_all();
+        let cpu_count = system_info.physical_core_count().unwrap_or(1) as u32/* system_info.cpus().len() as u32 */;
+
         (
             Self {
                 tick_interval: 1000,
                 state: AppState::Loading,
                 preferences: Preferences::new(),
+                system_info,
+                cpu_count,
+                tick: 0,
+                history: Vec::new(),
                 ..Default::default()
             },
             Command::batch(vec![
@@ -127,24 +152,31 @@ impl Application for App {
                 //     SidebarItemParent::new(String::from("Hello")),
                 //     SidebarItemParent::new(String::from("Goodbye")),
                 // ];
-            }
-        }
 
-        match message {
-            Message::Tick => {
-                // Change this to call specific to be more optimal
-                self.system_info = System::new_all();
-                self.disk_info = Disks::new_with_refreshed_list();
-                self.network_info = Networks::new_with_refreshed_list();
+                match message {
+                    Message::Tick => {
 
-                println!("tick");
-                for element in self.sidebar_items.iter_mut() {
-                    element.on_tick(&self.system_info, &self.disk_info, &self.network_info);
+                        self.tick += 1;
+
+                        // Change this to call specific to be more optimal
+
+                        self.system_info.refresh_cpu_specifics(CpuRefreshKind::new().with_cpu_usage());
+                        self.system_info.refresh_processes_specifics(ProcessRefreshKind::new().with_user(UpdateKind::Always));
+                        self.system_info.refresh_memory_specifics(MemoryRefreshKind::new().with_ram());
+                        self.disk_info = Disks::new_with_refreshed_list();
+                        self.network_info = Networks::new_with_refreshed_list();
+
+                        println!("tick: {}", self.tick);
+                        for element in self.sidebar_items.iter_mut() {
+                            element.on_tick(&self.system_info, &self.disk_info, &self.network_info);
+                        }
+
+                        self.main_content
+                            .on_tick(&mut self.system_info, self.cpu_count);
+                    }
+                    _ => {}
                 }
-
-                self.main_content.on_tick();
             }
-            _ => {}
         }
 
         Command::none()
@@ -290,8 +322,19 @@ enum ResourceType {
     Ethernet,
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct ResourcePreviewMetrics {
+    memory_usage: u64,
+    swap_usage: u64,
+    network_usage: u64,
+    disk_written: u64,
+    disk_read: u64,
+    cpu_usage: f32,
+    gpu_usage: f32,
+}
+
 #[derive(Debug, Default)]
-enum SidebarItemParentState {
+enum SidebarItemParentDisplayState {
     #[default]
     Shown,
     Hidden,
@@ -300,12 +343,9 @@ enum SidebarItemParentState {
 #[derive(Debug, Default)]
 pub struct SidebarItemParent {
     header: String,
-    description: String,
     usage_percent: Option<f32>,
-    usage: u64,
-    capacity: u64,
-    state: SidebarItemParentState,
     resource: ResourceType,
+    metric: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -319,31 +359,56 @@ impl SidebarItemParent {
             resource,
             header,
             usage_percent: None,
+            metric: None,
             ..Default::default()
         }
     }
 
     fn on_tick(&mut self, system_info: &System, disk_info: &Disks, network_info: &Networks) {
-        let resource_result: Option<(u64, u64)> = match self.resource {
-            ResourceType::Applications => None,
-            ResourceType::Processes => None,
+        let (usage_percent, metric): (Option<f32>, Option<String>) = match self.resource {
+            ResourceType::Applications => (None, None),
+            ResourceType::Processes => {
+                let processes = system_info.processes();
+
+                (None, Some(processes.len().to_string()))
+            }
             ResourceType::Cpu => {
                 let cpus = system_info.cpus();
+                // Relative to the number of cores. So 200% means 2 cores fully used
                 let mut total_used: f32 = 0.;
+                let mut cpu_count: u32 = 0;
 
                 for cpu in cpus {
                     total_used += cpu.cpu_usage();
+                    cpu_count += 1;
                 }
 
-                println!("cpu, total used {}", total_used);
+                // Make it relative to total core usage
+                let usage_percent = total_used / cpu_count as f32;
+                self.usage_percent = Some(usage_percent);
+                self.metric = Some(format!("{:.1}%", total_used));
 
-                Some((total_used as u64, 1))
+                (Some(usage_percent), Some(format!("{:.1}%", usage_percent)))
             }
-            ResourceType::Memory => Some((system_info.used_memory(), system_info.total_memory())),
-            ResourceType::Gpu => None,
+            ResourceType::Memory => {
+                let total_used = system_info.used_memory();
+                let total_capacity = system_info.total_memory();
+
+                let usage_percent = total_used as f32 / total_capacity as f32 * 100.;
+
+                (Some(usage_percent), Some(format!("{:.1}%", usage_percent)))
+            }
+            ResourceType::Gpu => (None, None),
             ResourceType::Disk => {
                 let mut total_read = 0;
                 let mut total_written = 0;
+
+                /* for disk in disk_info {
+                    disk.
+                    total_read += disk.name().
+                }
+
+                system_info. */
 
                 for (pid, process) in system_info.processes() {
                     let disk_usage = process.disk_usage();
@@ -352,7 +417,10 @@ impl SidebarItemParent {
                     total_written += disk_usage.written_bytes;
                 }
 
-                Some((total_read, total_written))
+                (
+                    None,
+                    Some(format!("{:.1}% {:.1}%", total_read, total_written)),
+                )
             }
             ResourceType::Wifi => {
                 let mut total_received = 0;
@@ -363,18 +431,16 @@ impl SidebarItemParent {
                     total_transmitted += data.transmitted();
                 }
 
-                Some((total_received, total_transmitted))
+                (
+                    None,
+                    Some(format!("{:.1}% {:.1}%", total_received, total_transmitted)),
+                )
             }
-            ResourceType::Ethernet => None,
+            ResourceType::Ethernet => (None, None),
         };
 
-        let Some((usage, capacity)) = resource_result else {
-            return;
-        };
-
-        self.usage_percent = Some((usage as f32 / capacity as f32) * 100.);
-        self.usage = usage;
-        self.capacity = capacity;
+        self.usage_percent = usage_percent;
+        self.metric = metric;
     }
 
     fn view(&self, i: usize) -> Element<SidebarItemParentMessage> {
@@ -415,7 +481,14 @@ impl SidebarItemParent {
                 row![
                     text(icon_text).font(iced_aw::BOOTSTRAP_FONT),
                     text(self.header.clone()),
-                    text(String::from("metric")).size(10)
+                    text(self.metric.clone().unwrap_or("".to_string())).size(10),
+                    // {
+                    //     if let Some(metric) = &self.metric {
+                    //         return text(metric).size(10).into();
+                    //     }
+
+                    //     text("".to_string()).size(10)
+                    // }
                 ]
                 .spacing(10)
                 .align_items(Alignment::Center),

@@ -8,3 +8,7 @@ pub enum DisplayState {
     Shown,
     Hidden,
 }
+
+/// How many decimals to show for percentage values.
+/// TODO: Make this user configurable
+pub const PERCENT_PRECISION: u8 = 1;

@@ -11,7 +11,7 @@ use iced::{
 };
 use iced_aw::{grid, grid_row, Grid, GridRow};
 use ordered_float::OrderedFloat;
-use sysinfo::{MemoryRefreshKind, Process, ProcessRefreshKind, RefreshKind, System};
+use sysinfo::{MemoryRefreshKind, Pid, Process, ProcessRefreshKind, RefreshKind, System};
 
 use crate::ResourceType;
 
@@ -22,12 +22,12 @@ use super::{
 
 #[derive(Debug)]
 pub struct ProcessDetails {
+    pub id: Pid,
     pub name: String,
     pub cpu_usage: f32,
     pub memory_usage: u64,
     pub disk_read: u64,
     pub disk_written: u64,
-    pub kill: fn(&Process) -> bool,
 }
 
 #[derive(Debug)]
@@ -83,8 +83,7 @@ impl ProcessesDetailsProcs {
 
 #[derive(Debug, Clone)]
 pub enum ResourceDetailsMessage {
-    MemoryDetailsMessage(MemoryDetailsMessage),
-    ApplicationsDetailsMessage(ApplicationsDetailsMessage),
+    KillProcessId(Pid),
 }
 
 // pub type ResourceDetailsElements = MemoryDetails & ApplicationsDetails;
@@ -92,6 +91,7 @@ pub enum ResourceDetailsMessage {
 #[derive(Debug, Default)]
 pub struct ResourceDetails {
     resource: ResourceType,
+    preview_values: Option<u32>,
     memory_details: Option<MemoryDetails>,
     processes_details: Option<ProcessesDetails>,
 }
@@ -104,13 +104,12 @@ impl ResourceDetails {
         }
     }
 
-    pub fn on_tick(&mut self) {
+    pub fn on_tick(&mut self, system_info: &mut System, cpu_count: u32) {
         match self.resource {
             ResourceType::Applications => {}
             ResourceType::Processes => {
-                let system_info = System::new_with_specifics(
-                    RefreshKind::new().with_processes(ProcessRefreshKind::everything()),
-                );
+
+                system_info.refresh_processes();
 
                 let mut processes = Vec::new();
 
@@ -119,11 +118,11 @@ impl ResourceDetails {
 
                     processes.push(ProcessDetails {
                         name: process.name().to_string(),
-                        cpu_usage: process.cpu_usage(),
+                        id: pid.clone(),
+                        cpu_usage: process.cpu_usage() / cpu_count as f32,
                         memory_usage: process.memory(),
                         disk_read: disk_usage.read_bytes,
                         disk_written: disk_usage.written_bytes,
-                        kill: move |process| process.kill(),
                     })
                 }
 
@@ -137,7 +136,7 @@ impl ResourceDetails {
 
                 self.processes_details = Some(ProcessesDetails {
                     processes,
-                    sort_index: 2,
+                    sort_index: 1,
                     sort_ascending: false,
                 });
             }
@@ -159,6 +158,29 @@ impl ResourceDetails {
             ResourceType::Wifi => {}
             ResourceType::Ethernet => {}
         };
+    }
+
+    fn update(&mut self, message: ResourceDetailsMessage) {
+        match message {
+            ResourceDetailsMessage::KillProcessId(pid) => {
+                let Some(processes_details) = &mut self.processes_details else {
+                    return;
+                };
+
+                let system_info = System::new_with_specifics(
+                    RefreshKind::new().with_processes(ProcessRefreshKind::everything()),
+                );
+
+                let Some(process) = system_info.process(pid) else {
+                    return;
+                };
+
+                // The process still exists. Kill it
+
+                process.kill();
+                println!("Killed {}", process.name());
+            }
+        }
     }
 
     pub fn view(&self) -> Element<ResourceDetailsMessage> {
@@ -199,83 +221,29 @@ impl ResourceDetails {
                     elements
                 });
 
-                // let processes: Element<_> = {
-                //     keyed_column(processes_details.processes.iter().enumerate().map(
-                //         |(i, process_details)| {
-                //             (
-                //                 i,
-                //                 row![
-                //                     text(format!["{}", process_details.name]),
-                //                     horizontal_space(),
-                //                     text(format!["{}", process_details.cpu_usage]),
-                //                     horizontal_space(),
-                //                     text(format!["{}", process_details.memory_usage]),
-                //                     horizontal_space(),
-                //                     text(format!["{}", process_details.disk_read]),
-                //                     horizontal_space(),
-                //                     text(format!["{}", process_details.disk_written]),
-                //                     horizontal_space(),
-                //                     button(text("Kill")),
-                //                 ]
-                //                 .width(Length::Shrink)
-                //                 .spacing(10)
-                //                 .into(),
-                //             )
-                //         },
-                //     ))
-                //     .width(Length::Shrink)
-                //     .into()
-                // };
+                let processes_totals = grid_row!(
+                    row![
+                        text(iced_aw::graphics::icons::BootstrapIcon::BarChart.to_string())
+                            .font(iced_aw::BOOTSTRAP_FONT),
+                        text("Total")
+                    ]
+                    .spacing(5),
+                    text("CPU"),
+                    text("Memory"),
+                    text("Read"),
+                    text("Written"),
+                    text("Action"),
+                );
 
-                // let test =
-                //     grid!(grid_row!(text(String::from("Header"))), {
-                //         processes_details.processes.iter().enumerate().map(
-                //             |(i, process_details)| {
-                //                 grid_row!(
-                //                     text(format!["{}", process_details.name]),
-                //                     horizontal_space(),
-                //                     text(format!["{}", process_details.cpu_usage]),
-                //                     horizontal_space(),
-                //                     text(format!["{}", process_details.memory_usage]),
-                //                     horizontal_space(),
-                //                     text(format!["{}", process_details.disk_read]),
-                //                     horizontal_space(),
-                //                     text(format!["{}", process_details.disk_written]),
-                //                     horizontal_space(),
-                //                     button(text("Kill")),
-                //                 )
-                //                 .into()
-                //             },
-                //         )
-                //     })
-                //     .width(Length::Shrink);
-
-                // let main: Grid<ResourceDetailsMessage, Theme, iced::Renderer> =
-                //     grid!(processes_headers);
-
-                // for process_details in &processes_details.processes {
-                //     main.push(grid_row!(
-                //         text(format!["{}", process_details.name]),
-                //         text(format!["{}", process_details.cpu_usage]),
-                //         text(format!["{}", process_details.memory_usage]),
-                //         text(format!["{}", process_details.disk_read]),
-                //         text(format!["{}", process_details.disk_written]),
-                //         button(text("Kill")),
-                //     ));
-                // }
-
-                let test = Grid::with_rows({
+                let main = Grid::with_rows({
                     let mut rows = Vec::new();
                     rows.push(processes_headers);
-
-                    // processes_details.processes.sort_by(|a, b| {
-                    //     a.
-                    // });
+                    rows.push(processes_totals);
 
                     for process_details in &processes_details.processes {
                         rows.push(grid_row!(
                             text(format!["{}", process_details.name]),
-                            text(format!["{}", process_details.cpu_usage]),
+                            text(format!["{:.2}%", process_details.cpu_usage]),
                             text(format![
                                 "{:.2} MB",
                                 process_details.memory_usage as f64 / 1024. / 1024.
@@ -288,7 +256,9 @@ impl ResourceDetails {
                                 "{:.2} MB",
                                 process_details.disk_written as f64 / 1024. / 1024.
                             ]),
-                            button(text("Kill")),
+                            button(text("Kill")).on_press(ResourceDetailsMessage::KillProcessId(
+                                process_details.id
+                            )),
                         ))
                     }
 
@@ -301,7 +271,7 @@ impl ResourceDetails {
 
                 // let main = column![processes_headers, processes].width(Length::Shrink);
 
-                let content = column![header, scrollable(test)]
+                let content = column![header, scrollable(main)]
                     .spacing(20)
                     .align_items(Alignment::Center);
 
