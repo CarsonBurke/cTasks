@@ -173,6 +173,9 @@ impl Application for App {
                         self.main_content
                             .on_tick(&mut self.system_info, self.cpu_count);
                     }
+                    Message::ResourceDetailsMessage(resource_details_message) => {
+                        let _ = self.main_content.update(resource_details_message).map(Message::ResourceDetailsMessage);
+                    }
                     Message::SetResourceDetails(resource) => {
                         self.main_content.resource = resource.clone();
                     }

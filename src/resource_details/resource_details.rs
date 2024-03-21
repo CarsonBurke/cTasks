@@ -5,11 +5,12 @@ use iced::{
     theme,
     widget::{
         button, column, container, horizontal_space, keyed_column, row, scrollable,
-        shader::wgpu::hal::empty::Resource, text,
+        shader::wgpu::{hal::empty::Resource, naga::proc},
+        text,
     },
-    Alignment, Element, Length, Theme,
+    Alignment, Command, Element, Length, Theme,
 };
-use iced_aw::{grid, grid_row, Grid, GridRow};
+use iced_aw::{grid, grid_row, BootstrapIcon, Grid, GridRow};
 use ordered_float::OrderedFloat;
 use sysinfo::{MemoryRefreshKind, Pid, Process, ProcessRefreshKind, RefreshKind, System};
 
@@ -30,11 +31,18 @@ pub struct ProcessDetails {
     pub disk_written: u64,
 }
 
+#[derive(Debug, Default, Clone, PartialEq)]
+pub enum SortDirection {
+    Ascending,
+    #[default]
+    Descending,
+}
+
 #[derive(Debug)]
 pub struct ProcessesDetails {
     pub processes: Vec<ProcessDetails>,
     pub sort_index: u32,
-    pub sort_ascending: bool,
+    pub sort_direction: SortDirection,
 }
 
 impl ProcessesDetails {
@@ -57,33 +65,36 @@ impl ProcessesDetailsProcs {
     pub fn sort_by_index(
         processes: &mut Vec<ProcessDetails>,
         sort_index: u32,
-        sort_ascending: bool,
+        sort_direction: &SortDirection,
     ) {
         match sort_index {
             1 => {
                 processes.sort_by_key(|process| OrderedFloat(process.cpu_usage));
-                processes.reverse()
             }
             2 => {
                 processes.sort_by_key(|process| process.memory_usage);
-                processes.reverse()
             }
             3 => {
                 processes.sort_by_key(|process| process.disk_read);
-                processes.reverse()
             }
             4 => {
                 processes.sort_by_key(|process| process.disk_written);
-                processes.reverse()
             }
             _ => (), // No sorting
-        }
+        };
+
+        match sort_direction {
+            SortDirection::Descending => processes.reverse(),
+            SortDirection::Ascending => {}
+        };
     }
 }
 
 #[derive(Debug, Clone)]
 pub enum ResourceDetailsMessage {
     KillProcessId(Pid),
+    SortByIndex(u32),
+    SwitchSortDirection,
 }
 
 // pub type ResourceDetailsElements = MemoryDetails & ApplicationsDetails;
@@ -98,16 +109,32 @@ pub struct ResourceDetails {
 
 impl ResourceDetails {
     pub fn new(resource: ResourceType) -> Self {
-        Self {
-            resource,
+        let mut new_self = Self {
+            resource: resource.clone(),
             ..Default::default()
+        };
+
+        match &resource {
+            ResourceType::Processes => {
+                new_self.processes_details = Some(ProcessesDetails {
+                    processes: Vec::new(),
+                    sort_index: 0,
+                    sort_direction: SortDirection::default(),
+                })
+            }
+            _ => {}
         }
+
+        new_self
     }
 
     pub fn on_tick(&mut self, system_info: &mut System, cpu_count: u32) {
         match self.resource {
             ResourceType::Applications => {}
             ResourceType::Processes => {
+                let Some(processes_details) = &mut self.processes_details else {
+                    return;
+                };
 
                 system_info.refresh_processes();
 
@@ -126,19 +153,13 @@ impl ResourceDetails {
                     })
                 }
 
-                if let Some(processes_details) = &self.processes_details {
-                    ProcessesDetailsProcs::sort_by_index(
-                        &mut processes,
-                        processes_details.sort_index,
-                        processes_details.sort_ascending,
-                    );
-                }
+                ProcessesDetailsProcs::sort_by_index(
+                    &mut processes,
+                    processes_details.sort_index,
+                    &processes_details.sort_direction,
+                );
 
-                self.processes_details = Some(ProcessesDetails {
-                    processes,
-                    sort_index: 1,
-                    sort_ascending: false,
-                });
+                processes_details.processes = processes;
             }
             ResourceType::Memory => {
                 let system_info = System::new_with_specifics(
@@ -160,27 +181,62 @@ impl ResourceDetails {
         };
     }
 
-    fn update(&mut self, message: ResourceDetailsMessage) {
-        match message {
-            ResourceDetailsMessage::KillProcessId(pid) => {
-                let Some(processes_details) = &mut self.processes_details else {
-                    return;
-                };
+    pub fn update(&mut self, message: ResourceDetailsMessage) -> Command<ResourceDetailsMessage> {
+        println!("updated");
 
-                let system_info = System::new_with_specifics(
-                    RefreshKind::new().with_processes(ProcessRefreshKind::everything()),
-                );
+        (|| {
+            match message {
+                ResourceDetailsMessage::KillProcessId(pid) => {
+                    let Some(processes_details) = &mut self.processes_details else {
+                        return;
+                    };
 
-                let Some(process) = system_info.process(pid) else {
-                    return;
-                };
+                    let system_info = System::new_with_specifics(
+                        RefreshKind::new().with_processes(ProcessRefreshKind::everything()),
+                    );
 
-                // The process still exists. Kill it
+                    let Some(process) = system_info.process(pid) else {
+                        return;
+                    };
 
-                process.kill();
-                println!("Killed {}", process.name());
+                    // The process still exists. Kill it
+
+                    process.kill();
+                    println!("Killed {}", process.name());
+                }
+                ResourceDetailsMessage::SortByIndex(sort_index) => {
+                    let Some(processes_details) = &mut self.processes_details else {
+                        return;
+                    };
+
+                    processes_details.sort_index = sort_index;
+                    // Also reset the sort direction since the user is sorting a different category
+                    processes_details.sort_direction = SortDirection::default();
+
+                    ProcessesDetailsProcs::sort_by_index(
+                        &mut processes_details.processes,
+                        processes_details.sort_index,
+                        &processes_details.sort_direction,
+                    );
+                }
+                ResourceDetailsMessage::SwitchSortDirection => {
+                    let Some(processes_details) = &mut self.processes_details else {
+                        return;
+                    };
+
+                    processes_details.sort_direction = match processes_details.sort_direction {
+                        SortDirection::Descending => {
+                            SortDirection::Ascending
+                        }   
+                        SortDirection::Ascending => {
+                            SortDirection::Descending
+                        }
+                    };
+                }
             }
-        }
+        })();
+
+        Command::none()
     }
 
     pub fn view(&self) -> Element<ResourceDetailsMessage> {
@@ -210,9 +266,34 @@ impl ResourceDetails {
                     let mut i: u32 = 0;
                     for string in processes_header_strings {
                         if i == processes_details.sort_index {
-                            elements.push(text(format!["{} ▼", string]))
+                            elements.push(
+                                button(
+                                    row![
+                                        text(string),
+                                        // Icon
+                                        text(String::from({
+                                            match processes_details.sort_direction {
+                                                SortDirection::Descending => {
+                                                    BootstrapIcon::CaretUpFill
+                                                }
+                                                SortDirection::Ascending => {
+                                                    BootstrapIcon::CaretDownFill
+                                                }
+                                            }
+                                        }))
+                                        .font(iced_aw::BOOTSTRAP_FONT)
+                                    ]
+                                    .spacing(10),
+                                )
+                                .width(Length::Fill)
+                                .on_press(ResourceDetailsMessage::SwitchSortDirection),
+                            )
                         } else {
-                            elements.push(text(string));
+                            elements.push(
+                                button(string)
+                                    .width(Length::Fill)
+                                    .on_press(ResourceDetailsMessage::SortByIndex(i)),
+                            );
                         }
 
                         i += 1;
@@ -264,7 +345,9 @@ impl ResourceDetails {
 
                     rows
                 })
-                .column_width(Length::Shrink);
+                .column_width(Length::Shrink)
+                .row_spacing(10)
+                .column_spacing(0);
 
                 // let main =
                 //     grid!(grid_row!(processes_headers), grid_row!(processes)).width(Length::Shrink);
