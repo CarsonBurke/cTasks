@@ -238,7 +238,7 @@ impl Application for App {
                             i,
                             button(element
                                 .view(i)
-                                .map(move |message| Message::SidebarItemParentMessage(i, message))).on_press(Message::SetResourceDetails(element.resource.clone())).into(),
+                                .map(move |message| Message::SidebarItemParentMessage(i, message))).on_press(Message::SetResourceDetails(element.resource.clone())).width(Length::Fill).into(),
                         )
                     }))
                     .spacing(10)
