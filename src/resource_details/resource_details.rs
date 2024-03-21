@@ -90,7 +90,7 @@ pub enum ResourceDetailsMessage {
 
 #[derive(Debug, Default)]
 pub struct ResourceDetails {
-    resource: ResourceType,
+    pub resource: ResourceType,
     preview_values: Option<u32>,
     memory_details: Option<MemoryDetails>,
     processes_details: Option<ProcessesDetails>,

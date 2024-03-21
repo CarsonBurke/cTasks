@@ -8,9 +8,7 @@ use iced::{
     },
     alignment, executor, font, theme,
     widget::{
-        column, container, horizontal_space, keyed_column, progress_bar, row, scrollable,
-        shader::wgpu::{hal::empty::Resource, naga::proc},
-        text, text_input, Column, Row, Space,
+        button, column, container, horizontal_space, keyed_column, progress_bar, row, scrollable::{self, Direction, Properties, RelativeOffset}, shader::wgpu::{hal::empty::Resource, naga::proc}, text, text_input, Column, Row, Scrollable, Space
     },
     window::{icon, Icon},
     Alignment, Application, Command, Element, Font, Length, Pixels, Renderer, Sandbox, Settings,
@@ -54,6 +52,7 @@ enum Message {
     Loaded(Result<(), String>),
     SidebarItemParentMessage(usize, SidebarItemParentMessage),
     ResourceDetailsMessage(ResourceDetailsMessage),
+    SetResourceDetails(ResourceType),
     Tick,
 }
 
@@ -174,6 +173,9 @@ impl Application for App {
                         self.main_content
                             .on_tick(&mut self.system_info, self.cpu_count);
                     }
+                    Message::SetResourceDetails(resource) => {
+                        self.main_content.resource = resource.clone();
+                    }
                     _ => {}
                 }
             }
@@ -234,9 +236,9 @@ impl Application for App {
                     keyed_column(self.sidebar_items.iter().enumerate().map(|(i, element)| {
                         (
                             i,
-                            element
+                            button(element
                                 .view(i)
-                                .map(move |message| Message::SidebarItemParentMessage(i, message)),
+                                .map(move |message| Message::SidebarItemParentMessage(i, message))).on_press(Message::SetResourceDetails(element.resource.clone())).into(),
                         )
                     }))
                     .spacing(10)
@@ -280,13 +282,13 @@ impl Application for App {
                 //     .width(Length::Fill)
                 //     .padding(padding::MAIN);
 
-                let main = container(scrollable(
+                let main = container(Scrollable::new(
                     column![self
                         .main_content
                         .view()
                         .map(move |message| Message::ResourceDetailsMessage(message))]
                     .spacing(10),
-                ))
+                ).direction(Direction::Vertical(Properties::default())))
                 .width(Length::Fill)
                 .height(Length::Fill)
                 .padding(padding::MAIN);
