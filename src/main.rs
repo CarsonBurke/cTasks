@@ -6,13 +6,16 @@ use iced::{
         graphics::{futures::backend::default, text::cosmic_text::SwashImage},
         widget::Text,
     },
-    alignment, executor, font, theme,
+    alignment, color, executor, font, theme,
     widget::{
-        button, column, container, horizontal_space, keyed_column, progress_bar, row, scrollable::{self, Direction, Properties, RelativeOffset}, shader::wgpu::{hal::empty::Resource, naga::proc}, text, text_input, Column, Row, Scrollable, Space
+        button, column, container, horizontal_space, keyed_column, progress_bar, row,
+        scrollable::{self, Direction, Properties, RelativeOffset},
+        shader::wgpu::{hal::empty::Resource, naga::proc},
+        text, text_input, Column, Container, Row, Scrollable, Space,
     },
     window::{icon, Icon},
-    Alignment, Application, Command, Element, Font, Length, Pixels, Renderer, Sandbox, Settings,
-    Subscription, Theme,
+    Alignment, Application, Color, Command, Element, Font, Length, Pixels, Renderer, Sandbox,
+    Settings, Subscription, Theme,
 };
 use iced_aw::{
     floating_element::{self, Anchor},
@@ -21,15 +24,34 @@ use iced_aw::{
     split, BootstrapIcon, FloatingElement, NerdIcon, Spinner, NERD_FONT,
 };
 use resource_details::resource_details::{ResourceDetails, ResourceDetailsMessage};
-use sysinfo::{Cpu, CpuRefreshKind, Disks, MemoryRefreshKind, Networks, ProcessRefreshKind, RefreshKind, System, UpdateKind};
+use styles::{
+    button::{MyButtonStyleSheet},
+    container::{main_content, sidebar},
+};
+use sysinfo::{
+    Cpu, CpuRefreshKind, Disks, MemoryRefreshKind, Networks, ProcessRefreshKind, RefreshKind,
+    System, UpdateKind,
+};
 
 mod constants;
 mod resource_details;
 mod resource_previews;
+mod styles;
 
 pub fn main() -> iced::Result {
     // env::set_var("RUST_BACKTRACE", "1");
     App::run(Settings::default())
+}
+
+pub enum CustomTheme {
+    Light,
+    Dark,
+}
+
+impl CustomTheme {
+    pub fn from_system() -> Self {
+        CustomTheme::Dark
+    }
 }
 
 #[derive(Debug, Default, Clone)]
@@ -154,14 +176,17 @@ impl Application for App {
 
                 match message {
                     Message::Tick => {
-
                         self.tick += 1;
 
                         // Change this to call specific to be more optimal
 
-                        self.system_info.refresh_cpu_specifics(CpuRefreshKind::new().with_cpu_usage());
-                        self.system_info.refresh_processes_specifics(ProcessRefreshKind::new().with_user(UpdateKind::Always));
-                        self.system_info.refresh_memory_specifics(MemoryRefreshKind::new().with_ram());
+                        self.system_info
+                            .refresh_cpu_specifics(CpuRefreshKind::new().with_cpu_usage());
+                        self.system_info.refresh_processes_specifics(
+                            ProcessRefreshKind::new().with_user(UpdateKind::Always),
+                        );
+                        self.system_info
+                            .refresh_memory_specifics(MemoryRefreshKind::new().with_ram());
                         self.disk_info = Disks::new_with_refreshed_list();
                         self.network_info = Networks::new_with_refreshed_list();
 
@@ -174,7 +199,10 @@ impl Application for App {
                             .on_tick(&mut self.system_info, self.cpu_count);
                     }
                     Message::ResourceDetailsMessage(resource_details_message) => {
-                        let _ = self.main_content.update(resource_details_message).map(Message::ResourceDetailsMessage);
+                        let _ = self
+                            .main_content
+                            .update(resource_details_message)
+                            .map(Message::ResourceDetailsMessage);
                     }
                     Message::SetResourceDetails(resource) => {
                         self.main_content.resource = resource.clone();
@@ -206,7 +234,7 @@ impl Application for App {
                     .into()
             }
             AppState::Loaded => {
-                let floating_content = container(
+                let floating_content = container(row![]);/* container(
                     column![
                         text(String::from("Preferences")),
                         text_input("tick interval", "value")
@@ -219,7 +247,7 @@ impl Application for App {
                 .center_y()
                 .style(theme::Container::Box)
                 .align_x(alignment::Horizontal::Center)
-                .align_y(alignment::Vertical::Center);
+                .align_y(alignment::Vertical::Center); */
 
                 let sidebar_header = row![
                     // text(iced_aw::graphics::icons::BootstrapIcon::List.to_string())
@@ -235,23 +263,30 @@ impl Application for App {
                 ]
                 .spacing(10);
 
-                let sidebar_content: Element<_> = {
-                    keyed_column(self.sidebar_items.iter().enumerate().map(|(i, element)| {
-                        (
-                            i,
-                            button(element
-                                .view(i)
-                                .map(move |message| Message::SidebarItemParentMessage(i, message))).on_press(Message::SetResourceDetails(element.resource.clone())).width(Length::Fill).into(),
-                        )
-                    }))
-                    .spacing(10)
-                    .into()
-                };
+                let sidebar_content: Element<_> =
+                    {
+                        keyed_column(self.sidebar_items.iter().enumerate().map(|(i, element)| {
+                            (
+                                i,
+                                button(element.view(i).map(move |message| {
+                                    Message::SidebarItemParentMessage(i, message)
+                                }))
+                                .on_press(Message::SetResourceDetails(element.resource.clone()))
+                                .width(Length::Fill)
+                                /* .style(styles::button::button_appearance(&self.theme())) */
+                                /* .style(MyButtonStyleSheet) */
+                                .into(),
+                            )
+                        }))
+                        .spacing(10)
+                        .into()
+                    };
 
                 // let content: Element<_> = keyed_column().into();
 
                 let sidebar = container(column![sidebar_header, sidebar_content,].spacing(20))
-                    .style(theme::Container::Box)
+                    /* .style(theme::Container::Box) */
+                    .style(sidebar(&self.theme()))
                     .height(Length::Fill)
                     .padding(padding::MAIN)
                     .width(Length::Shrink)
@@ -285,13 +320,17 @@ impl Application for App {
                 //     .width(Length::Fill)
                 //     .padding(padding::MAIN);
 
-                let main = container(Scrollable::new(
-                    column![self
-                        .main_content
-                        .view()
-                        .map(move |message| Message::ResourceDetailsMessage(message))]
-                    .spacing(10),
-                ).direction(Direction::Vertical(Properties::default())))
+                let main = container(
+                    Scrollable::new(
+                        column![self
+                            .main_content
+                            .view()
+                            .map(move |message| Message::ResourceDetailsMessage(message))]
+                        .spacing(10),
+                    )
+                    .direction(Direction::Vertical(Properties::default())),
+                )
+                .style(main_content(&self.theme()))
                 .width(Length::Fill)
                 .height(Length::Fill)
                 .padding(padding::MAIN);
@@ -310,7 +349,32 @@ impl Application for App {
     }
 
     fn theme(&self) -> Theme {
-        Theme::Dark
+        let theme_color = CustomTheme::from_system();
+
+        let theme = match theme_color {
+            CustomTheme::Dark => iced::Theme::custom(
+                String::from("Custom"),
+                iced::theme::Palette {
+                    success: Color::from_rgb(46. / 255., 194. / 255., 126. / 255.),
+                    danger: Color::from_rgb(244. / 255., 27. / 255., 36. / 255.),
+                    text: Color::from_rgb(255. / 255., 255. / 255., 255. / 255.),
+                    primary: Color::from_rgb(30. / 255., 30. / 255., 30. / 255.),
+                    background: Color::from_rgb(42. / 255., 42. / 255., 42. / 255.),
+                },
+            ),
+            CustomTheme::Light => iced::Theme::custom(
+                String::from("Custom"),
+                iced::theme::Palette {
+                    success: Color::from_rgb(46. / 255., 194. / 255., 126. / 255.),
+                    danger: Color::from_rgb(244. / 255., 27. / 255., 36. / 255.),
+                    text: Color::from_rgb(255. / 255., 255. / 255., 255. / 255.),
+                    primary: Color::from_rgb(30. / 255., 30. / 255., 30. / 255.),
+                    background: Color::from_rgb(42. / 255., 42. / 255., 42. / 255.),
+                },
+            ),
+        };
+
+        theme
     }
 }
 

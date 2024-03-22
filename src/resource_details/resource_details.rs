@@ -286,13 +286,15 @@ impl ResourceDetails {
                                     .spacing(10),
                                 )
                                 .width(Length::Fill)
-                                .on_press(ResourceDetailsMessage::SwitchSortDirection),
+                                .on_press(ResourceDetailsMessage::SwitchSortDirection)
+                                .style(theme::Button::Text),
                             )
                         } else {
                             elements.push(
                                 button(string)
                                     .width(Length::Fill)
-                                    .on_press(ResourceDetailsMessage::SortByIndex(i)),
+                                    .on_press(ResourceDetailsMessage::SortByIndex(i))
+                                    .style(theme::Button::Text),
                             );
                         }
 
