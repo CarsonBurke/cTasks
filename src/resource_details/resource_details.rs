@@ -1,14 +1,11 @@
 use std::borrow::BorrowMut;
 
 use iced::{
-    advanced::graphics::futures::backend::default,
-    theme,
-    widget::{
+    advanced::{graphics::futures::backend::default}, font, theme, widget::{
         button, column, container, horizontal_space, keyed_column, row, scrollable,
         shader::wgpu::{hal::empty::Resource, naga::proc},
         text,
-    },
-    Alignment, Command, Element, Length, Theme,
+    }, Alignment, Command, Element, Font, Length, Renderer, Theme
 };
 use iced_aw::{grid, grid_row, BootstrapIcon, Grid, GridRow};
 use ordered_float::OrderedFloat;
@@ -225,12 +222,8 @@ impl ResourceDetails {
                     };
 
                     processes_details.sort_direction = match processes_details.sort_direction {
-                        SortDirection::Descending => {
-                            SortDirection::Ascending
-                        }   
-                        SortDirection::Ascending => {
-                            SortDirection::Descending
-                        }
+                        SortDirection::Descending => SortDirection::Ascending,
+                        SortDirection::Ascending => SortDirection::Descending,
                     };
                 }
             }
@@ -254,19 +247,19 @@ impl ResourceDetails {
 
                 let header = container(row!["Processes"])
                     .center_x()
-                    .style(theme::Container::Box)
+                    /* .style(theme::Container::Box) */
                     .width(Length::Fill);
 
                 let processes_header_strings =
                     vec!["Name", "CPU", "Memory", "Disk Read", "Disk Written", "Kill"];
 
-                let processes_headers = GridRow::with_elements({
-                    let mut elements = Vec::new();
+                let processes_headers: GridRow<'_, ResourceDetailsMessage, Theme, Renderer> = GridRow::new();
 
-                    let mut i: u32 = 0;
+                let mut i: u32 = 0;
                     for string in processes_header_strings {
                         if i == processes_details.sort_index {
-                            elements.push(
+                            processes_headers.push(
+                                row![
                                 button(
                                     row![
                                         text(string),
@@ -286,37 +279,90 @@ impl ResourceDetails {
                                     .spacing(10),
                                 )
                                 .width(Length::Fill)
-                                .on_press(ResourceDetailsMessage::SwitchSortDirection)
-                                .style(theme::Button::Text),
-                            )
+                                .on_press(ResourceDetailsMessage::SwitchSortDirection)].into()
+                                 /* .style(theme::Button::Text) */
+                                
+                            );
                         } else {
-                            elements.push(
+                            processes_headers.push(
+                                row![
                                 button(string)
                                     .width(Length::Fill)
-                                    .on_press(ResourceDetailsMessage::SortByIndex(i))
-                                    .style(theme::Button::Text),
+                                    .on_press(ResourceDetailsMessage::SortByIndex(i))].into()
+                                     /* .style(theme::Button::Text) */
+                                
                             );
                         }
 
                         i += 1;
                     }
 
-                    elements
-                });
+                /* let processes_headers = GridRow::with_elements({
+                    let mut elements = Vec::new();
+                    
+                    let mut i: u32 = 0;
+                    for string in processes_header_strings {
+                        if i == processes_details.sort_index {
+                            elements.push(
+                                row![
+                                button(
+                                    row![
+                                        text(string),
+                                        // Icon
+                                        text(String::from({
+                                            match processes_details.sort_direction {
+                                                SortDirection::Descending => {
+                                                    BootstrapIcon::CaretUpFill
+                                                }
+                                                SortDirection::Ascending => {
+                                                    BootstrapIcon::CaretDownFill
+                                                }
+                                            }
+                                        }))
+                                        .font(iced_aw::BOOTSTRAP_FONT)
+                                    ]
+                                    .spacing(10),
+                                )
+                                .width(Length::Fill)
+                                .on_press(ResourceDetailsMessage::SwitchSortDirection)]
+                                 /* .style(theme::Button::Text) */
+                                
+                            )
+                        } else {
+                            elements.push(
+                                row![
+                                button(string)
+                                    .width(Length::Fill)
+                                    .on_press(ResourceDetailsMessage::SortByIndex(i))]
+                                     /* .style(theme::Button::Text) */
+                                
+                            );
+                        }
 
-                let processes_totals = grid_row!(
+                        i += 1;
+                    }
+
+                    elements.into()
+                }); */
+
+                let processes_totals = GridRow::with_elements(vec![
                     row![
-                        text(iced_aw::graphics::icons::BootstrapIcon::BarChart.to_string())
-                            .font(iced_aw::BOOTSTRAP_FONT),
+                        text(iced_aw::graphics::icons::BootstrapIcon::BarChart.to_string()).font(
+                            Font {
+                                family: font::Family::Name("bootstrap-icons"),
+                                ..Default::default()
+                            }
+                        ),
                         text("Total")
                     ]
-                    .spacing(5),
-                    text("CPU"),
-                    text("Memory"),
-                    text("Read"),
-                    text("Written"),
-                    text("Action"),
-                );
+                    .spacing(5)
+                    .into(),
+                    row![text("CPU")].into(),
+                    row![text("Memory")].into(),
+                    row![text("Read")].into(),
+                    row![text("Written")].into(),
+                    row![text("Action")].into(),
+                ]);
 
                 let main = Grid::with_rows({
                     let mut rows = Vec::new();
@@ -324,30 +370,34 @@ impl ResourceDetails {
                     rows.push(processes_totals);
 
                     for process_details in &processes_details.processes {
-                        rows.push(grid_row!(
-                            text(format!["{}", process_details.name]),
-                            text(format!["{:.2}%", process_details.cpu_usage]),
-                            text(format![
+                        rows.push(GridRow::with_elements(vec![
+                            row![text(format!["{}", process_details.name])].into(),
+                            row![text(format!["{:.2}%", process_details.cpu_usage])].into(),
+                            row![text(format![
                                 "{:.2} MB",
                                 process_details.memory_usage as f64 / 1024. / 1024.
-                            ]),
-                            text(format![
+                            ])]
+                            .into(),
+                            row![text(format![
                                 "{:.2} MB",
                                 process_details.disk_read as f64 / 1024. / 1024.
-                            ]),
-                            text(format![
+                            ])]
+                            .into(),
+                            row![text(format![
                                 "{:.2} MB",
                                 process_details.disk_written as f64 / 1024. / 1024.
-                            ]),
-                            button(text("Kill")).on_press(ResourceDetailsMessage::KillProcessId(
-                                process_details.id
-                            )),
-                        ))
+                            ])]
+                            .into(),
+                            row![button(text("Kill")).on_press(
+                                ResourceDetailsMessage::KillProcessId(process_details.id)
+                            )]
+                            .into(),
+                        ]))
                     }
 
                     rows
                 })
-                .column_width(Length::Shrink)
+                .column_width(0)
                 .row_spacing(10)
                 .column_spacing(0);
 
@@ -356,7 +406,7 @@ impl ResourceDetails {
 
                 // let main = column![processes_headers, processes].width(Length::Shrink);
 
-                let content = column![header, scrollable(main)]
+                let content = column![header, scrollable(main.into())]
                     .spacing(20)
                     .align_items(Alignment::Center);
 
@@ -370,7 +420,7 @@ impl ResourceDetails {
 
                 let header = container(row!["Memory"])
                     .center_x()
-                    .style(theme::Container::Box)
+                    /* .style(theme::Container::Box) */
                     .width(Length::Fill);
 
                 let ram_details = {
@@ -382,7 +432,10 @@ impl ResourceDetails {
                         column![
                             row![
                                 text(iced_aw::graphics::icons::BootstrapIcon::Memory.to_string())
-                                    .font(iced_aw::BOOTSTRAP_FONT),
+                                    .font(Font {
+                                        family: font::Family::Name("bootstrap-icons"),
+                                        ..Default::default()
+                                    }),
                                 text(String::from("Random Access Memory")),
                                 // i in the top right that takes someone to a description of what RAM is
                             ]
@@ -412,7 +465,10 @@ impl ResourceDetails {
                         column![
                             row![
                                 text(iced_aw::graphics::icons::BootstrapIcon::HddRack.to_string())
-                                    .font(iced_aw::BOOTSTRAP_FONT),
+                                    .font(Font {
+                                        family: font::Family::Name("bootstrap-icons"),
+                                        ..Default::default()
+                                    }),
                                 text(String::from("Swap")) // i in the top right that takes someone to a description of what Swap is
                             ]
                             .spacing(10),
@@ -436,14 +492,21 @@ impl ResourceDetails {
                         ram_details,
                         swap_details,
                         row![
-                            text(iced_aw::graphics::icons::BootstrapIcon::Tools.to_string())
-                                .font(iced_aw::BOOTSTRAP_FONT),
+                            text(iced_aw::graphics::icons::BootstrapIcon::Tools.to_string()).font(
+                                Font {
+                                    family: font::Family::Name("bootstrap-icons"),
+                                    ..Default::default()
+                                }
+                            ),
                             text(String::from("Advanced"))
                         ]
                         .spacing(10),
                         row![
                             text(iced_aw::graphics::icons::BootstrapIcon::InfoCircle.to_string())
-                                .font(iced_aw::BOOTSTRAP_FONT),
+                                .font(Font {
+                                    family: font::Family::Name("bootstrap-icons"),
+                                    ..Default::default()
+                                }),
                             text(String::from("About"))
                         ]
                         .spacing(10),

@@ -4,7 +4,7 @@ use constants::{padding, DisplayState, PERCENT_PRECISION};
 use iced::{
     advanced::{
         graphics::{futures::backend::default, text::cosmic_text::SwashImage},
-        widget::Text,
+        widget::Text, Application,
     },
     alignment, color, executor, font, theme,
     widget::{
@@ -14,18 +14,14 @@ use iced::{
         text, text_input, Column, Container, Row, Scrollable, Space,
     },
     window::{icon, Icon},
-    Alignment, Application, Color, Command, Element, Font, Length, Pixels, Renderer, Sandbox,
+    Alignment, Color, Command, Element, Font, Length, Pixels, Renderer,
     Settings, Subscription, Theme,
 };
 use iced_aw::{
-    floating_element::{self, Anchor},
-    graphics::icons::{self, icon_to_char},
-    native::Split,
-    split, BootstrapIcon, FloatingElement, NerdIcon, Spinner, NERD_FONT,
+    floating_element::{self, Anchor}, graphics::icons::{self, icon_to_char}, native::Split, spinner, split, BootstrapIcon, FloatingElement, NerdIcon, Spinner, NERD_FONT
 };
 use resource_details::resource_details::{ResourceDetails, ResourceDetailsMessage};
 use styles::{
-    button::{MyButtonStyleSheet},
     container::{main_content, sidebar},
 };
 use sysinfo::{
@@ -224,7 +220,7 @@ impl Application for App {
         match self.state {
             AppState::Loading => {
                 let spinner = Spinner::new();
-                let loading = column![spinner];
+                let loading = column![/* spinner */];
 
                 container(loading)
                     .width(Length::Fill)
@@ -234,7 +230,7 @@ impl Application for App {
                     .into()
             }
             AppState::Loaded => {
-                let floating_content = container(row![]);/* container(
+                /*let floating_content = container(
                     column![
                         text(String::from("Preferences")),
                         text_input("tick interval", "value")
@@ -245,7 +241,6 @@ impl Application for App {
                 .width(Length::FillPortion(2))
                 .center_x()
                 .center_y()
-                .style(theme::Container::Box)
                 .align_x(alignment::Horizontal::Center)
                 .align_y(alignment::Vertical::Center); */
 
@@ -259,7 +254,7 @@ impl Application for App {
                     text(String::from("C Tasks")),
                     horizontal_space(),
                     text(iced_aw::graphics::icons::BootstrapIcon::List.to_string())
-                        .font(iced_aw::BOOTSTRAP_FONT),
+                        .font(Font {family: font::Family::Name("bootstrap-icons"), ..Default::default() }),
                 ]
                 .spacing(10);
 
@@ -273,7 +268,7 @@ impl Application for App {
                                 }))
                                 .on_press(Message::SetResourceDetails(element.resource.clone()))
                                 .width(Length::Fill)
-                                /* .style(styles::button::button_appearance(&self.theme())) */
+                                .style(styles::button::button_appearance)
                                 /* .style(MyButtonStyleSheet) */
                                 .into(),
                             )
@@ -286,7 +281,7 @@ impl Application for App {
 
                 let sidebar = container(column![sidebar_header, sidebar_content,].spacing(20))
                     /* .style(theme::Container::Box) */
-                    .style(sidebar(&self.theme()))
+                    .style(sidebar)
                     .height(Length::Fill)
                     .padding(padding::MAIN)
                     .width(Length::Shrink)
@@ -327,10 +322,9 @@ impl Application for App {
                             .view()
                             .map(move |message| Message::ResourceDetailsMessage(message))]
                         .spacing(10),
-                    )
-                    .direction(Direction::Vertical(Properties::default())),
+                    ),
                 )
-                .style(main_content(&self.theme()))
+                .style(main_content)
                 .width(Length::Fill)
                 .height(Length::Fill)
                 .padding(padding::MAIN);
@@ -338,10 +332,10 @@ impl Application for App {
                 let left = sidebar;
                 let right = column![/* header, */ main /* footer */,].width(Length::FillPortion(3));
 
-                let container = container(
-                    FloatingElement::new(row![left, right], floating_content)
+                let container = container(row![left, right]
+                    /* FloatingElement::new(row![left, right], floating_content)
                         .anchor(Anchor::SouthEast)
-                        .hide(false),
+                        .hide(false) */,
                 );
                 container.into()
             }
@@ -548,7 +542,7 @@ impl SidebarItemParent {
         let container = container(
             column![
                 row![
-                    text(icon_text).font(iced_aw::BOOTSTRAP_FONT),
+                    text(icon_text).font(Font {family: font::Family::Name("bootstrap-icons"), ..Default::default() }),
                     text(self.header.clone()),
                     text(self.metric.clone().unwrap_or("".to_string())).size(10),
                     // {

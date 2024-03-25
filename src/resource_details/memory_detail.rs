@@ -1,7 +1,5 @@
 use iced::{
-    alignment, theme,
-    widget::{column, container, row, scrollable, text},
-    Alignment, Element, Length, Theme,
+    alignment, font, theme, widget::{column, container, row, scrollable, text, Container}, Alignment, Element, Font, Length, Theme
 };
 use iced_aw::style;
 use sysinfo::{MemoryRefreshKind, RefreshKind, System};
@@ -41,7 +39,6 @@ impl MemoryDetails {
     pub fn view(&self) -> Element<MemoryDetailsMessage> {
         let header = container(row!["Memory"])
             .center_x()
-            .style(theme::Container::Box)
             .width(Length::Fill);
 
         let ram_details = {
@@ -53,7 +50,7 @@ impl MemoryDetails {
                 column![
                     row![
                         text(iced_aw::graphics::icons::BootstrapIcon::Memory.to_string())
-                            .font(iced_aw::BOOTSTRAP_FONT),
+                        .font(Font {family: font::Family::Name("bootstrap-icons"), ..Default::default() }),
                         text(String::from("Random Access Memory")),
                         // i in the top right that takes someone to a description of what RAM is
                     ]
@@ -82,7 +79,7 @@ impl MemoryDetails {
                 column![
                     row![
                         text(iced_aw::graphics::icons::BootstrapIcon::HddRack.to_string())
-                            .font(iced_aw::BOOTSTRAP_FONT),
+                        .font(Font {family: font::Family::Name("bootstrap-icons"), ..Default::default() }),
                         text(String::from("Swap")) // i in the top right that takes someone to a description of what Swap is
                     ]
                     .spacing(10),
@@ -107,13 +104,13 @@ impl MemoryDetails {
                 swap_details,
                 row![
                     text(iced_aw::graphics::icons::BootstrapIcon::Tools.to_string())
-                        .font(iced_aw::BOOTSTRAP_FONT),
+                    .font(Font {family: font::Family::Name("bootstrap-icons"), ..Default::default() }),
                     text(String::from("Advanced"))
                 ]
                 .spacing(10),
                 row![
                     text(iced_aw::graphics::icons::BootstrapIcon::InfoCircle.to_string())
-                        .font(iced_aw::BOOTSTRAP_FONT),
+                    .font(Font {family: font::Family::Name("bootstrap-icons"), ..Default::default() }),
                     text(String::from("About"))
                 ]
                 .spacing(10),
