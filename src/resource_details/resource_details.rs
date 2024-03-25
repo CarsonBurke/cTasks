@@ -250,14 +250,14 @@ impl ResourceDetails {
 
                 let header = container(row!["Processes"])
                     .center_x()
-                    .style(theme::Container::Box)
+                    // .style(theme::Container::Box)
                     .width(Length::Fill);
 
                 let processes_header_strings =
                     vec!["Name", "CPU", "Memory", "Disk Read", "Disk Written", "Kill"];
 
                 let processes_headers = GridRow::with_elements({
-                    let mut elements = Vec::new();
+                    let mut elements: Vec<iced::Element<_, _, _, _>> = Vec::new();
 
                     let mut i: u32 = 0;
                     for string in processes_header_strings {
@@ -286,14 +286,14 @@ impl ResourceDetails {
                                 )
                                 .width(Length::Fill)
                                 .on_press(ResourceDetailsMessage::SwitchSortDirection)
-                                .style(theme::Button::Text),
+                                /* .style(theme::Button::Text) */.into(),
                             )
                         } else {
                             elements.push(
                                 button(string)
                                     .width(Length::Fill)
                                     .on_press(ResourceDetailsMessage::SortByIndex(i))
-                                    .style(theme::Button::Text),
+                                    /* .style(theme::Button::Text) */.into(),
                             );
                         }
 
@@ -350,7 +350,7 @@ impl ResourceDetails {
 
                     rows
                 })
-                .column_width(Length::Shrink)
+                .column_width(0)
                 .row_spacing(10)
                 .column_spacing(0);
 
