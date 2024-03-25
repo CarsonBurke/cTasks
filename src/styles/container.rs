@@ -1,31 +1,31 @@
 use iced::{widget, Background, Theme};
 
-pub fn primary(theme: &Theme) -> widget::container::Appearance {
+use crate::constants::custom_theme::{BACKGROUND_1, BACKGROUND_2};
+
+// pub fn main_content(theme: &Theme) -> widget::container::Appearance {
+//     widget::container::Appearance {
+//         background: Some(Background::from(Theme::palette(theme).background)),
+//         ..Default::default()
+//     }
+// }
+
+// pub fn sidebar(theme: &Theme) -> widget::container::Appearance {
+//     widget::container::Appearance {
+//         background: Some(Background::from(Theme::palette(theme).background)),
+//         ..Default::default()
+//     }
+// }
+
+pub fn main_content() -> widget::container::Appearance {
     widget::container::Appearance {
-        text_color: Some(iced::Color::from_rgb(132.0, 123.0, 124.0)),
-        background: Some(Background::from(Theme::palette(theme).primary)),
+        background: Some(Background::from(BACKGROUND_1)),
         ..Default::default()
     }
 }
 
-pub fn secondary(theme: &Theme) -> widget::container::Appearance {
+pub fn sidebar() -> widget::container::Appearance {
     widget::container::Appearance {
-        text_color: Some(iced::Color::from_rgb(132.0, 123.0, 124.0)),
-        background: Some(Background::from(Theme::palette(theme).primary)),
-        ..Default::default()
-    }
-}
-
-pub fn main_content(theme: &Theme) -> widget::container::Appearance {
-    widget::container::Appearance {
-        background: Some(Background::from(Theme::palette(theme).primary)),
-        ..Default::default()
-    }
-}
-
-pub fn sidebar(theme: &Theme) -> widget::container::Appearance {
-    widget::container::Appearance {
-        background: Some(Background::from(Theme::palette(theme).background)),
+        background: Some(Background::from(BACKGROUND_2)),
         ..Default::default()
     }
 }

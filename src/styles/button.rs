@@ -1,20 +1,18 @@
 use iced::{
     application::{Appearance, StyleSheet},
     theme::{self, Button},
-    widget::{self, button, container},
+    widget::{self, button::{self}, container},
     Background, Color, Theme,
 };
 
-pub struct MyButtonStyleSheet;
+use crate::constants::custom_theme;
 
-impl StyleSheet for MyButtonStyleSheet {
-    type Style = ();
+pub fn primary() -> widget::button::Appearance {
 
-    fn appearance(&self, _style: &Self::Style) -> Appearance {
-        Appearance {
-            background_color: Color::from_rgb(0.1, 0.2, 0.3),
-            text_color: Color::from_rgb(0.9, 0.9, 0.9),
-        }
+    widget::button::Appearance {
+        text_color: iced::Color::from_rgb(132.0, 123.0, 124.0),
+        background: Some(Background::from(custom_theme::PRIMARY)),
+        ..Default::default()
     }
 }
 

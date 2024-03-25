@@ -6,7 +6,7 @@ use iced::{
         graphics::{futures::backend::default, text::cosmic_text::SwashImage},
         widget::Text,
     },
-    alignment, color, executor, font, theme,
+    alignment, color, executor, font, theme::{self, palette::{Extended, Secondary}, Palette},
     widget::{
         button, column, container, horizontal_space, keyed_column, progress_bar, row,
         scrollable::{self, Direction, Properties, RelativeOffset},
@@ -24,10 +24,7 @@ use iced_aw::{
     split, BootstrapIcon, FloatingElement, NerdIcon, Spinner, NERD_FONT,
 };
 use resource_details::resource_details::{ResourceDetails, ResourceDetailsMessage};
-use styles::{
-    button::{MyButtonStyleSheet},
-    container::{main_content, sidebar},
-};
+use styles::container::{main_content, sidebar};
 use sysinfo::{
     Cpu, CpuRefreshKind, Disks, MemoryRefreshKind, Networks, ProcessRefreshKind, RefreshKind,
     System, UpdateKind,
@@ -43,14 +40,14 @@ pub fn main() -> iced::Result {
     App::run(Settings::default())
 }
 
-pub enum CustomTheme {
+pub enum CustomThemeChoice {
     Light,
     Dark,
 }
 
-impl CustomTheme {
+impl CustomThemeChoice {
     pub fn from_system() -> Self {
-        CustomTheme::Dark
+        CustomThemeChoice::Dark
     }
 }
 
@@ -234,20 +231,20 @@ impl Application for App {
                     .into()
             }
             AppState::Loaded => {
-                let floating_content = container(row![]);/* container(
-                    column![
-                        text(String::from("Preferences")),
-                        text_input("tick interval", "value")
-                    ]
-                    .spacing(10)
-                    .align_items(Alignment::Center),
-                )
-                .width(Length::FillPortion(2))
-                .center_x()
-                .center_y()
-                .style(theme::Container::Box)
-                .align_x(alignment::Horizontal::Center)
-                .align_y(alignment::Vertical::Center); */
+                let floating_content = container(row![]); /* container(
+                                                              column![
+                                                                  text(String::from("Preferences")),
+                                                                  text_input("tick interval", "value")
+                                                              ]
+                                                              .spacing(10)
+                                                              .align_items(Alignment::Center),
+                                                          )
+                                                          .width(Length::FillPortion(2))
+                                                          .center_x()
+                                                          .center_y()
+                                                          .style(theme::Container::Box)
+                                                          .align_x(alignment::Horizontal::Center)
+                                                          .align_y(alignment::Vertical::Center); */
 
                 let sidebar_header = row![
                     // text(iced_aw::graphics::icons::BootstrapIcon::List.to_string())
@@ -271,6 +268,7 @@ impl Application for App {
                                 button(element.view(i).map(move |message| {
                                     Message::SidebarItemParentMessage(i, message)
                                 }))
+                                //.style(styles::button::primary)
                                 .on_press(Message::SetResourceDetails(element.resource.clone()))
                                 .width(Length::Fill)
                                 /* .style(styles::button::button_appearance(&self.theme())) */
@@ -286,7 +284,7 @@ impl Application for App {
 
                 let sidebar = container(column![sidebar_header, sidebar_content,].spacing(20))
                     /* .style(theme::Container::Box) */
-                    .style(sidebar(&self.theme()))
+                    .style(sidebar())
                     .height(Length::Fill)
                     .padding(padding::MAIN)
                     .width(Length::Shrink)
@@ -330,7 +328,7 @@ impl Application for App {
                     )
                     .direction(Direction::Vertical(Properties::default())),
                 )
-                .style(main_content(&self.theme()))
+                .style(main_content())
                 .width(Length::Fill)
                 .height(Length::Fill)
                 .padding(padding::MAIN);
@@ -349,26 +347,28 @@ impl Application for App {
     }
 
     fn theme(&self) -> Theme {
-        let theme_color = CustomTheme::from_system();
+        let theme_color = CustomThemeChoice::from_system();
 
         let theme = match theme_color {
-            CustomTheme::Dark => iced::Theme::custom(
+            CustomThemeChoice::Dark => iced::Theme::custom(
                 String::from("Custom"),
                 iced::theme::Palette {
                     success: Color::from_rgb(46. / 255., 194. / 255., 126. / 255.),
                     danger: Color::from_rgb(244. / 255., 27. / 255., 36. / 255.),
                     text: Color::from_rgb(255. / 255., 255. / 255., 255. / 255.),
-                    primary: Color::from_rgb(30. / 255., 30. / 255., 30. / 255.),
+                    // primary: Color::from_rgb(30. / 255., 30. / 255., 30. / 255.),
+                    primary: Color::from_rgb(0.21, 0.52, 0.89),
                     background: Color::from_rgb(42. / 255., 42. / 255., 42. / 255.),
                 },
             ),
-            CustomTheme::Light => iced::Theme::custom(
+            CustomThemeChoice::Light => iced::Theme::custom(
                 String::from("Custom"),
                 iced::theme::Palette {
                     success: Color::from_rgb(46. / 255., 194. / 255., 126. / 255.),
                     danger: Color::from_rgb(244. / 255., 27. / 255., 36. / 255.),
                     text: Color::from_rgb(255. / 255., 255. / 255., 255. / 255.),
-                    primary: Color::from_rgb(30. / 255., 30. / 255., 30. / 255.),
+                    // primary: Color::from_rgb(30. / 255., 30. / 255., 30. / 255.),
+                    primary: Color::from_rgb(0.21, 0.52, 0.89),
                     background: Color::from_rgb(42. / 255., 42. / 255., 42. / 255.),
                 },
             ),
