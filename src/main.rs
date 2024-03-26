@@ -268,11 +268,10 @@ impl Application for App {
                                 button(element.view(i).map(move |message| {
                                     Message::SidebarItemParentMessage(i, message)
                                 }))
-                                //.style(styles::button::primary)
+                                .style(theme::Button::Text)
                                 .on_press(Message::SetResourceDetails(element.resource.clone()))
                                 .width(Length::Fill)
                                 /* .style(styles::button::button_appearance(&self.theme())) */
-                                /* .style(MyButtonStyleSheet) */
                                 .into(),
                             )
                         }))
