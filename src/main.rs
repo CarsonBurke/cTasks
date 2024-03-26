@@ -205,6 +205,14 @@ impl Application for App {
                             .main_content
                             .update(resource_details_message)
                             .map(Message::ResourceDetailsMessage);
+
+                        // match resource_details_message {
+                        //     ResourceDetailsMessage::SwitchSortDirection => {
+                        //         self.main_content
+                        //             .on_tick(&mut self.system_info, self.cpu_count);
+                        //     }
+                        //     _ => {}
+                        // }
                     }
                     Message::SetResourceDetails(resource) => {
                         self.main_content.apply_resource_type(resource);
@@ -336,8 +344,7 @@ impl Application for App {
                 )
                 .style(main_content())
                 .width(Length::Fill)
-                .height(Length::Fill)
-                .padding(padding::MAIN);
+                .height(Length::Fill);
 
                 let left = sidebar;
                 let right = column![/* header, */ main /* footer */,].width(Length::FillPortion(3));

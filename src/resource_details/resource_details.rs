@@ -4,10 +4,11 @@ use iced::{
     advanced::graphics::futures::backend::default,
     theme,
     widget::{
-        button, column, container, horizontal_space, keyed_column, row, scrollable,
+        self, button, column, container, horizontal_space, keyed_column, row, scrollable,
         shader::wgpu::{hal::empty::Resource, naga::proc},
         text,
     },
+    window::Action,
     Alignment, Command, Element, Length, Theme,
 };
 use iced_aw::{grid, grid_row, BootstrapIcon, Grid, GridRow};
@@ -15,7 +16,13 @@ use ordered_float::OrderedFloat;
 use plotters_iced::{Chart, ChartWidget};
 use sysinfo::{MemoryRefreshKind, Pid, Process, ProcessRefreshKind, RefreshKind, System};
 
-use crate::ResourceType;
+use crate::{
+    constants::padding,
+    styles::container::{
+        alternate_process_grid_row, primary_process_grid_row, resource_details_header,
+    },
+    ResourceType,
+};
 
 use super::{
     applications_details::{ApplicationsDetails, ApplicationsDetailsMessage},
@@ -47,20 +54,6 @@ pub struct ProcessesDetails {
     pub sort_direction: SortDirection,
 }
 
-impl ProcessesDetails {
-    pub fn sort_by_index(&mut self) {
-        match self.sort_index {
-            1 => self
-                .processes
-                .sort_by_key(|process| OrderedFloat(process.cpu_usage)),
-            2 => self.processes.sort_by_key(|process| process.memory_usage),
-            3 => self.processes.sort_by_key(|process| process.disk_read),
-            4 => self.processes.sort_by_key(|process| process.disk_written),
-            _ => (), // No sorting
-        }
-    }
-}
-
 struct ProcessesDetailsProcs;
 
 impl ProcessesDetailsProcs {
@@ -70,6 +63,9 @@ impl ProcessesDetailsProcs {
         sort_direction: &SortDirection,
     ) {
         match sort_index {
+            0 => {
+                processes.sort_by_key(|process| process.name.to_lowercase());
+            }
             1 => {
                 processes.sort_by_key(|process| OrderedFloat(process.cpu_usage));
             }
@@ -120,7 +116,6 @@ impl ResourceDetails {
     }
 
     pub fn apply_resource_type(&mut self, resource: ResourceType) {
-
         self.resource = resource.clone();
 
         match &resource {
@@ -159,6 +154,33 @@ impl ResourceDetails {
 
                 for (pid, process) in system_info.processes() {
                     let disk_usage = process.disk_usage();
+
+                    let Some(path) = process.exe() else { continue };
+
+                    if path.exists() {
+                        path.read_dir().ok().map(|read| {
+                            read.filter_map(|file_res| {
+                                file_res.ok().and_then(|file| {
+                                    let file_path = file.path();
+
+                                    let Ok(ini) = ini::Ini::load_from_file(file_path) else {
+                                        return Some(());
+                                    };
+
+                                    let Some(desktop_entry) = ini.section(Some("Desktop Entry"))
+                                    else {
+                                        return Some(());
+                                    };
+
+                                    if let Some(icon) = desktop_entry.get("Icon") {
+                                        println!("has icon, {}", icon);
+                                    }
+
+                                    Some(())
+                                })
+                            })
+                        });
+                    }
 
                     processes.push(ProcessDetails {
                         name: process.name().to_string(),
@@ -269,8 +291,9 @@ impl ResourceDetails {
 
                 let header = container(row!["Processes"])
                     .center_x()
-                    .style(theme::Container::Box)
-                    .width(Length::Fill);
+                    .style(resource_details_header())
+                    .width(Length::Fill)
+                    .padding(padding::MAIN);
 
                 let processes_header_strings =
                     vec!["Name", "CPU", "Memory", "Disk Read", "Disk Written", "Kill"];
@@ -289,10 +312,10 @@ impl ResourceDetails {
                                         text(String::from({
                                             match processes_details.sort_direction {
                                                 SortDirection::Descending => {
-                                                    BootstrapIcon::CaretUpFill
+                                                    BootstrapIcon::CaretDownFill
                                                 }
                                                 SortDirection::Ascending => {
-                                                    BootstrapIcon::CaretDownFill
+                                                    BootstrapIcon::CaretUpFill
                                                 }
                                             }
                                         }))
@@ -338,7 +361,16 @@ impl ResourceDetails {
                     rows.push(processes_headers);
                     rows.push(processes_totals);
 
+                    let mut i: u32 = 0;
+
                     for process_details in &processes_details.processes {
+                        let is_odd = i % 2 == 1;
+                        // let styler = if is_odd {
+                        //     alternate_process_grid_row()
+                        // } else {
+                        //     primary_process_grid_row()
+                        // };
+
                         rows.push(grid_row!(
                             text(format!["{}", process_details.name]),
                             text(format!["{:.2}%", process_details.cpu_usage]),
@@ -357,19 +389,17 @@ impl ResourceDetails {
                             button(text("Kill")).on_press(ResourceDetailsMessage::KillProcessId(
                                 process_details.id
                             )),
-                        ))
+                        ));
+
+                        i += 1;
                     }
 
                     rows
                 })
                 .column_width(Length::Shrink)
                 .row_spacing(10)
-                .column_spacing(0);
-
-                // let main =
-                //     grid!(grid_row!(processes_headers), grid_row!(processes)).width(Length::Shrink);
-
-                // let main = column![processes_headers, processes].width(Length::Shrink);
+                .column_spacing(0)
+                .padding(padding::MAIN);
 
                 let content = column![header, scrollable(main)]
                     .spacing(20)
@@ -385,8 +415,9 @@ impl ResourceDetails {
 
                 let header = container(row!["Memory"])
                     .center_x()
-                    .style(theme::Container::Box)
-                    .width(Length::Fill);
+                    .style(resource_details_header())
+                    .width(Length::Fill)
+                    .padding(padding::MAIN);
 
                 let ram_details = {
                     if memory_details.ram_usage == 0 || memory_details.ram_total == 0 {
@@ -467,7 +498,8 @@ impl ResourceDetails {
                     .spacing(20),
                 )
                 .center_x()
-                .width(Length::Shrink);
+                .width(Length::Shrink)
+                .padding(padding::MAIN);
 
                 let content = column![header, scrollable(main)]
                     .spacing(20)
