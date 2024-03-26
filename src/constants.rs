@@ -1,5 +1,15 @@
 pub mod padding {
     pub const MAIN: u16 = 10;
+    pub const PORTION: u16 = 6;
+}
+
+pub mod font_sizes {
+    pub const H2: u16 = 20;
+    pub const P: u16 = 15;
+}
+
+pub mod sizings {
+    pub const MAX_MAIN_CONTENT_CHILDREN_WIDTH: u16 = 800;
 }
 
 #[derive(Debug, Default)]

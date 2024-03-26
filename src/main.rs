@@ -344,7 +344,7 @@ impl Application for App {
                 )
                 .style(main_content())
                 .width(Length::Fill)
-                .height(Length::Fill);
+                .height(Length::Fill).center_x();
 
                 let left = sidebar;
                 let right = column![/* header, */ main /* footer */,].width(Length::FillPortion(3));

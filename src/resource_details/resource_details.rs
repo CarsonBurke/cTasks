@@ -1,15 +1,11 @@
 use std::borrow::BorrowMut;
 
 use iced::{
-    advanced::graphics::futures::backend::default,
-    theme,
-    widget::{
+    advanced::graphics::futures::backend::default, alignment, theme, widget::{
         self, button, column, container, horizontal_space, keyed_column, row, scrollable,
         shader::wgpu::{hal::empty::Resource, naga::proc},
         text,
-    },
-    window::Action,
-    Alignment, Command, Element, Length, Theme,
+    }, window::Action, Alignment, Command, Element, Length, Theme
 };
 use iced_aw::{grid, grid_row, BootstrapIcon, Grid, GridRow};
 use ordered_float::OrderedFloat;
@@ -17,9 +13,10 @@ use plotters_iced::{Chart, ChartWidget};
 use sysinfo::{MemoryRefreshKind, Pid, Process, ProcessRefreshKind, RefreshKind, System};
 
 use crate::{
-    constants::padding,
+    constants::{font_sizes, padding, sizings},
     styles::container::{
-        alternate_process_grid_row, primary_process_grid_row, resource_details_header,
+        alternate_process_grid_row, divider_background_1, primary_process_grid_row,
+        resource_details_child, resource_details_header,
     },
     ResourceType,
 };
@@ -419,92 +416,149 @@ impl ResourceDetails {
                     .width(Length::Fill)
                     .padding(padding::MAIN);
 
-                let ram_details = {
-                    if memory_details.ram_usage == 0 || memory_details.ram_total == 0 {
-                        column!["No RAM data to display"]
-                    } else {
-                        let ram_percent = memory_details.ram_usage * 100 / memory_details.ram_total;
+                let ram_details = column![
+                    row![
+                        text(iced_aw::graphics::icons::BootstrapIcon::Memory.to_string())
+                            .font(iced_aw::BOOTSTRAP_FONT)
+                            .size(font_sizes::H2),
+                        text(String::from("Random Access Memory")).size(font_sizes::H2),
+                        // i in the top right that takes someone to a description of what RAM is
+                    ]
+                    .spacing(10),
+                    container({
+                        if memory_details.ram_usage == 0 || memory_details.ram_total == 0 {
+                            column!["No RAM data to display"]
+                        } else {
+                            let ram_percent =
+                                memory_details.ram_usage * 100 / memory_details.ram_total;
 
-                        column![
-                            row![
-                                text(iced_aw::graphics::icons::BootstrapIcon::Memory.to_string())
-                                    .font(iced_aw::BOOTSTRAP_FONT),
-                                text(String::from("Random Access Memory")),
-                                // i in the top right that takes someone to a description of what RAM is
+                            column![
+                                row![
+                                    text(format!(
+                                        "{:.2} / {:.2} GB",
+                                        memory_details.ram_usage as f64 / 1024. / 1024. / 1024.,
+                                        memory_details.ram_total as f64 / 1024. / 1024. / 1024.
+                                    )),
+                                    /* use a dot like with lists */
+                                    text(String::from(" • ")),
+                                    text(format!("{}%", ram_percent))
+                                ],
+                                memory_details.ram_chart.view(),
                             ]
-                            .spacing(10),
-                            row![
-                                text(format!(
-                                    "{:.2} / {:.2} GB",
-                                    memory_details.ram_usage as f64 / 1024. / 1024. / 1024.,
-                                    memory_details.ram_total as f64 / 1024. / 1024. / 1024.
-                                )),
-                                /* use a dot like with lists */ text(String::from(" • ")),
-                                text(format!("{}%", ram_percent))
-                            ],
-                            text(String::from("graph")),
-                            memory_details.ram_chart.view(),
-                        ]
-                        .spacing(5)
-                    }
-                };
+                            .spacing(5)
+                        }
+                    })
+                    .padding(padding::MAIN)
+                    .style(resource_details_child())
+                    .width(Length::Fill)
+                    .center_y()
+                ]
+                .spacing(padding::PORTION)
+                .max_width(sizings::MAX_MAIN_CONTENT_CHILDREN_WIDTH);
 
-                let swap_details = {
-                    if memory_details.swap_usage == 0 || memory_details.swap_total == 0 {
-                        column!["No Swap data to display"]
-                    } else {
-                        let swap_percent =
-                            memory_details.swap_usage * 100 / memory_details.swap_total;
+                let swap_details = column![
+                    row![
+                        text(iced_aw::graphics::icons::BootstrapIcon::HddRack.to_string())
+                            .font(iced_aw::BOOTSTRAP_FONT)
+                            .size(font_sizes::H2),
+                        text(String::from("Swap")).size(font_sizes::H2) // i in the top right that takes someone to a description of what Swap is
+                    ]
+                    .spacing(padding::MAIN),
+                    container({
+                        if memory_details.swap_usage == 0 || memory_details.swap_total == 0 {
+                            column!["No Swap data to display"]
+                        } else {
+                            let swap_percent =
+                                memory_details.swap_usage * 100 / memory_details.swap_total;
 
-                        column![
-                            row![
-                                text(iced_aw::graphics::icons::BootstrapIcon::HddRack.to_string())
-                                    .font(iced_aw::BOOTSTRAP_FONT),
-                                text(String::from("Swap")) // i in the top right that takes someone to a description of what Swap is
-                            ]
-                            .spacing(10),
-                            row![
+                            column![row![
                                 text(format!(
                                     "{:.2} / {:.2} GB",
                                     memory_details.swap_usage as f64 / 1024. / 1024. / 1024.,
                                     memory_details.swap_total as f64 / 1024. / 1024. / 1024.
                                 )),
-                                /* use a dot like with lists */ text(String::from(" • ")),
+                                /* use a dot like with lists */
+                                text(String::from(" • ")),
                                 text(format!("{}%", swap_percent))
-                            ],
-                            text(String::from("graph")),
-                        ]
-                        .spacing(5)
-                    }
-                };
+                            ],]
+                            .spacing(5)
+                        }
+                    })
+                    .padding(padding::MAIN)
+                    .style(resource_details_child())
+                    .width(Length::Fill)
+                    .center_y()
+                ]
+                .spacing(padding::PORTION)
+                .max_width(sizings::MAX_MAIN_CONTENT_CHILDREN_WIDTH);
+
+                let about = column![
+                    row![
+                        text(iced_aw::graphics::icons::BootstrapIcon::InfoCircle.to_string())
+                            .font(iced_aw::BOOTSTRAP_FONT)
+                            .size(font_sizes::H2),
+                        text(String::from("About")).size(font_sizes::H2) // i in the top right that takes someone to a description of what Swap is
+                    ]
+                    .spacing(padding::MAIN),
+                    container(column![
+                        row![
+                            text(String::from("text")),
+                            horizontal_space(),
+                            text(String::from("text"))
+                        ].padding(padding::MAIN),
+                        container(row![]).style(divider_background_1()).width(Length::Fill).height(1),
+                        row![text(String::from("text"))],
+                        row![text(String::from("text"))]
+                    ])
+                    .style(resource_details_child())
+                    .width(Length::Fill)
+                    .center_y()
+                ]
+                .max_width(sizings::MAX_MAIN_CONTENT_CHILDREN_WIDTH)
+                .spacing(padding::PORTION);
+
+                let advanced = column![
+                    row![
+                        text(iced_aw::graphics::icons::BootstrapIcon::Tools.to_string())
+                            .font(iced_aw::BOOTSTRAP_FONT)
+                            .size(font_sizes::H2),
+                        text(String::from("Advanced")).size(font_sizes::H2) // i in the top right that takes someone to a description of what Swap is
+                    ]
+                    .spacing(padding::MAIN),
+                    container(column![
+                        row![
+                            text(String::from("text")),
+                            horizontal_space(),
+                            text(String::from("text"))
+                        ].padding(padding::MAIN),
+                        container(row![]).style(divider_background_1()).width(Length::Fill).height(1),
+                        row![text(String::from("text"))],
+                        row![text(String::from("text"))]
+                    ])
+                    .style(resource_details_child())
+                    .width(Length::Fill)
+                    .center_y()
+                ]
+                .max_width(sizings::MAX_MAIN_CONTENT_CHILDREN_WIDTH)
+                .spacing(padding::PORTION);
 
                 let main = container(
                     column![
                         ram_details,
                         swap_details,
-                        row![
-                            text(iced_aw::graphics::icons::BootstrapIcon::Tools.to_string())
-                                .font(iced_aw::BOOTSTRAP_FONT),
-                            text(String::from("Advanced"))
-                        ]
-                        .spacing(10),
-                        row![
-                            text(iced_aw::graphics::icons::BootstrapIcon::InfoCircle.to_string())
-                                .font(iced_aw::BOOTSTRAP_FONT),
-                            text(String::from("About"))
-                        ]
-                        .spacing(10),
+                        advanced,
+                        about
                     ]
-                    .spacing(20),
+                    .spacing(20).align_items(alignment::Alignment::Center),
                 )
                 .center_x()
-                .width(Length::Shrink)
+                .width(Length::Fill)
                 .padding(padding::MAIN);
 
                 let content = column![header, scrollable(main)]
                     .spacing(20)
                     .align_items(Alignment::Center);
-
+                
                 let container = container(content);
                 container.into()
             }

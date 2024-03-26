@@ -37,6 +37,17 @@ pub fn resource_details_header() -> widget::container::Appearance {
     }
 }
 
+pub fn resource_details_child() -> widget::container::Appearance {
+    widget::container::Appearance {
+        background: Some(Background::from(BACKGROUND_2)),
+        border: Border {
+            radius: [12., 12., 12., 12.].into(),
+            ..Default::default()
+        },
+        ..Default::default()
+    }
+}
+
 pub fn primary_process_grid_row() -> widget::container::Appearance {
     widget::container::Appearance {
         background: Some(Background::from(BACKGROUND_1)),
@@ -55,6 +66,13 @@ pub fn alternate_process_grid_row() -> widget::container::Appearance {
             radius: [12., 12., 12., 12.].into(),
             ..Default::default()
         },
+        ..Default::default()
+    }
+}
+
+pub fn divider_background_1() -> widget::container::Appearance {
+    widget::container::Appearance {
+        background: Some(Background::from(BACKGROUND_1)),
         ..Default::default()
     }
 }
