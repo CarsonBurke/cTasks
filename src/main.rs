@@ -6,7 +6,12 @@ use iced::{
         graphics::{futures::backend::default, text::cosmic_text::SwashImage},
         widget::Text,
     },
-    alignment, color, executor, font, theme::{self, palette::{Extended, Secondary}, Palette},
+    alignment, color, executor, font,
+    theme::{
+        self,
+        palette::{Extended, Secondary},
+        Palette,
+    },
     widget::{
         button, column, container, horizontal_space, keyed_column, progress_bar, row,
         scrollable::{self, Direction, Properties, RelativeOffset},
@@ -202,7 +207,9 @@ impl Application for App {
                             .map(Message::ResourceDetailsMessage);
                     }
                     Message::SetResourceDetails(resource) => {
-                        self.main_content.resource = resource.clone();
+                        self.main_content.apply_resource_type(resource);
+                        self.main_content
+                            .on_tick(&mut self.system_info, self.cpu_count);
                     }
                     _ => {}
                 }

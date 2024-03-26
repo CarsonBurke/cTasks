@@ -6,6 +6,8 @@ use iced::{
 use iced_aw::style;
 use sysinfo::{MemoryRefreshKind, RefreshKind, System};
 
+use super::chart::ResourceChart;
+
 #[derive(Debug, Default, Clone)]
 pub enum MemoryDetailsMessage {
     #[default]
@@ -18,6 +20,8 @@ pub struct MemoryDetails {
     pub ram_total: u64,
     pub swap_usage: u64,
     pub swap_total: u64,
+    pub ram_chart: ResourceChart,
+    pub swap_chart: ResourceChart,
 }
 
 impl MemoryDetails {

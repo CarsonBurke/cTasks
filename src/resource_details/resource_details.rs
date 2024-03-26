@@ -12,12 +12,14 @@ use iced::{
 };
 use iced_aw::{grid, grid_row, BootstrapIcon, Grid, GridRow};
 use ordered_float::OrderedFloat;
+use plotters_iced::{Chart, ChartWidget};
 use sysinfo::{MemoryRefreshKind, Pid, Process, ProcessRefreshKind, RefreshKind, System};
 
 use crate::ResourceType;
 
 use super::{
     applications_details::{ApplicationsDetails, ApplicationsDetailsMessage},
+    chart::ResourceChart,
     memory_detail::{self, MemoryDetails, MemoryDetailsMessage},
 };
 
@@ -110,22 +112,37 @@ pub struct ResourceDetails {
 impl ResourceDetails {
     pub fn new(resource: ResourceType) -> Self {
         let mut new_self = Self {
-            resource: resource.clone(),
             ..Default::default()
         };
+        new_self.apply_resource_type(resource);
+
+        new_self
+    }
+
+    pub fn apply_resource_type(&mut self, resource: ResourceType) {
+
+        self.resource = resource.clone();
 
         match &resource {
             ResourceType::Processes => {
-                new_self.processes_details = Some(ProcessesDetails {
+                self.processes_details = Some(ProcessesDetails {
                     processes: Vec::new(),
                     sort_index: 0,
                     sort_direction: SortDirection::default(),
                 })
             }
+            ResourceType::Memory => {
+                self.memory_details = Some(MemoryDetails {
+                    ram_usage: 0,
+                    ram_total: 0,
+                    swap_usage: 0,
+                    swap_total: 0,
+                    ram_chart: ResourceChart::new(),
+                    swap_chart: ResourceChart::new(),
+                })
+            }
             _ => {}
-        }
-
-        new_self
+        };
     }
 
     pub fn on_tick(&mut self, system_info: &mut System, cpu_count: u32) {
@@ -166,12 +183,14 @@ impl ResourceDetails {
                     RefreshKind::new().with_memory(MemoryRefreshKind::everything()),
                 );
 
-                self.memory_details = Some(MemoryDetails {
-                    ram_usage: system_info.used_memory(),
-                    ram_total: system_info.total_memory(),
-                    swap_usage: system_info.used_swap(),
-                    swap_total: system_info.total_swap(),
-                });
+                let Some(memory_details) = &mut self.memory_details else {
+                    return;
+                };
+
+                memory_details.ram_usage = system_info.used_memory();
+                memory_details.ram_total = system_info.total_memory();
+                memory_details.swap_usage = system_info.used_swap();
+                memory_details.swap_total = system_info.total_swap();
             }
             ResourceType::Cpu => {}
             ResourceType::Gpu => {}
@@ -225,12 +244,8 @@ impl ResourceDetails {
                     };
 
                     processes_details.sort_direction = match processes_details.sort_direction {
-                        SortDirection::Descending => {
-                            SortDirection::Ascending
-                        }   
-                        SortDirection::Ascending => {
-                            SortDirection::Descending
-                        }
+                        SortDirection::Descending => SortDirection::Ascending,
+                        SortDirection::Ascending => SortDirection::Descending,
                     };
                 }
             }
@@ -249,7 +264,7 @@ impl ResourceDetails {
             }
             ResourceType::Processes => {
                 let Some(processes_details) = &self.processes_details else {
-                    return text("Loading...").into();
+                    return text("Waiting for tick").into();
                 };
 
                 let header = container(row!["Processes"])
@@ -365,7 +380,7 @@ impl ResourceDetails {
             }
             ResourceType::Memory => {
                 let Some(memory_details) = &self.memory_details else {
-                    return text("Loading...").into();
+                    return text("Waiting for tick").into();
                 };
 
                 let header = container(row!["Memory"])
@@ -397,6 +412,7 @@ impl ResourceDetails {
                                 text(format!("{}%", ram_percent))
                             ],
                             text(String::from("graph")),
+                            memory_details.ram_chart.view(),
                         ]
                         .spacing(5)
                     }
