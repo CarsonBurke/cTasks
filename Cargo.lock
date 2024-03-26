@@ -67,12 +67,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "aliasable"
-version = "0.1.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "250f629c0161ad8107cf89319e990051fae62832fd343083bea452d93e2205fd"
-
-[[package]]
 name = "allocator-api2"
 version = "0.2.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -335,9 +329,9 @@ checksum = "1505bd5d3d116872e7271a6d4e16d81d0c8570876c8de68093a09ac269d8aac0"
 
 [[package]]
 name = "autocfg"
-version = "1.1.0"
+version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
+checksum = "f1fdabc7756949593fe60f30ec81974b613357de856987752631dea1e3394c80"
 
 [[package]]
 name = "backtrace"
@@ -1656,12 +1650,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "heck"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "95505c38b4572b2d910cecb0281560f54b440a19336cbbcb27bf6ce6adc6f5a8"
-
-[[package]]
 name = "hermit-abi"
 version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1719,7 +1707,7 @@ dependencies = [
 [[package]]
 name = "iced"
 version = "0.13.0-dev"
-source = "git+https://github.com/iced-rs/iced.git#3013463baa71504488a20436beb3db87ecb66df0"
+source = "git+https://github.com/iced-rs/iced.git#eae4065300e9997db12268be55eceb4e4c294b1e"
 dependencies = [
  "iced_core 0.13.0-dev",
  "iced_futures 0.13.0-dev",
@@ -1732,8 +1720,7 @@ dependencies = [
 [[package]]
 name = "iced_aw"
 version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "129deba9897243dd59c2038e2267a691e392c94e569680066ee63b1164429490"
+source = "git+https://github.com/iced-rs/iced_aw#7311ccce7d805edfb1ad28f7e4be65c9521bd56f"
 dependencies = [
  "cfg-if",
  "iced 0.12.1",
@@ -1761,7 +1748,7 @@ dependencies = [
 [[package]]
 name = "iced_core"
 version = "0.13.0-dev"
-source = "git+https://github.com/iced-rs/iced.git#3013463baa71504488a20436beb3db87ecb66df0"
+source = "git+https://github.com/iced-rs/iced.git#eae4065300e9997db12268be55eceb4e4c294b1e"
 dependencies = [
  "bitflags 2.5.0",
  "dark-light",
@@ -1786,7 +1773,6 @@ dependencies = [
  "futures",
  "iced_core 0.12.3",
  "log",
- "tokio",
  "wasm-bindgen-futures",
  "wasm-timer",
 ]
@@ -1794,7 +1780,7 @@ dependencies = [
 [[package]]
 name = "iced_futures"
 version = "0.13.0-dev"
-source = "git+https://github.com/iced-rs/iced.git#3013463baa71504488a20436beb3db87ecb66df0"
+source = "git+https://github.com/iced-rs/iced.git#eae4065300e9997db12268be55eceb4e4c294b1e"
 dependencies = [
  "futures",
  "iced_core 0.13.0-dev",
@@ -1829,7 +1815,7 @@ dependencies = [
 [[package]]
 name = "iced_graphics"
 version = "0.13.0-dev"
-source = "git+https://github.com/iced-rs/iced.git#3013463baa71504488a20436beb3db87ecb66df0"
+source = "git+https://github.com/iced-rs/iced.git#eae4065300e9997db12268be55eceb4e4c294b1e"
 dependencies = [
  "bitflags 2.5.0",
  "bytemuck",
@@ -1863,7 +1849,7 @@ dependencies = [
 [[package]]
 name = "iced_renderer"
 version = "0.13.0-dev"
-source = "git+https://github.com/iced-rs/iced.git#3013463baa71504488a20436beb3db87ecb66df0"
+source = "git+https://github.com/iced-rs/iced.git#eae4065300e9997db12268be55eceb4e4c294b1e"
 dependencies = [
  "iced_graphics 0.13.0-dev",
  "iced_tiny_skia 0.13.0-dev",
@@ -1887,7 +1873,7 @@ dependencies = [
 [[package]]
 name = "iced_runtime"
 version = "0.13.0-dev"
-source = "git+https://github.com/iced-rs/iced.git#3013463baa71504488a20436beb3db87ecb66df0"
+source = "git+https://github.com/iced-rs/iced.git#eae4065300e9997db12268be55eceb4e4c294b1e"
 dependencies = [
  "iced_core 0.13.0-dev",
  "iced_futures 0.13.0-dev",
@@ -1926,7 +1912,7 @@ dependencies = [
 [[package]]
 name = "iced_tiny_skia"
 version = "0.13.0-dev"
-source = "git+https://github.com/iced-rs/iced.git#3013463baa71504488a20436beb3db87ecb66df0"
+source = "git+https://github.com/iced-rs/iced.git#eae4065300e9997db12268be55eceb4e4c294b1e"
 dependencies = [
  "bytemuck",
  "cosmic-text",
@@ -1961,7 +1947,7 @@ dependencies = [
 [[package]]
 name = "iced_wgpu"
 version = "0.13.0-dev"
-source = "git+https://github.com/iced-rs/iced.git#3013463baa71504488a20436beb3db87ecb66df0"
+source = "git+https://github.com/iced-rs/iced.git#eae4065300e9997db12268be55eceb4e4c294b1e"
 dependencies = [
  "bitflags 2.5.0",
  "bytemuck",
@@ -1973,6 +1959,7 @@ dependencies = [
  "log",
  "lyon",
  "once_cell",
+ "thiserror",
  "wgpu",
 ]
 
@@ -1986,7 +1973,6 @@ dependencies = [
  "iced_runtime 0.12.1",
  "iced_style",
  "num-traits",
- "ouroboros",
  "thiserror",
  "unicode-segmentation",
 ]
@@ -1994,7 +1980,7 @@ dependencies = [
 [[package]]
 name = "iced_widget"
 version = "0.13.0-dev"
-source = "git+https://github.com/iced-rs/iced.git#3013463baa71504488a20436beb3db87ecb66df0"
+source = "git+https://github.com/iced-rs/iced.git#eae4065300e9997db12268be55eceb4e4c294b1e"
 dependencies = [
  "iced_renderer 0.13.0-dev",
  "iced_runtime 0.13.0-dev",
@@ -2024,7 +2010,7 @@ dependencies = [
 [[package]]
 name = "iced_winit"
 version = "0.13.0-dev"
-source = "git+https://github.com/iced-rs/iced.git#3013463baa71504488a20436beb3db87ecb66df0"
+source = "git+https://github.com/iced-rs/iced.git#eae4065300e9997db12268be55eceb4e4c294b1e"
 dependencies = [
  "iced_graphics 0.13.0-dev",
  "iced_runtime 0.13.0-dev",
@@ -2632,31 +2618,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ouroboros"
-version = "0.18.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "97b7be5a8a3462b752f4be3ff2b2bf2f7f1d00834902e46be2a4d68b87b0573c"
-dependencies = [
- "aliasable",
- "ouroboros_macro",
- "static_assertions",
-]
-
-[[package]]
-name = "ouroboros_macro"
-version = "0.18.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b645dcde5f119c2c454a92d0dfa271a2a3b205da92e4292a68ead4bdbfde1f33"
-dependencies = [
- "heck",
- "itertools",
- "proc-macro2",
- "proc-macro2-diagnostics",
- "quote",
- "syn 2.0.55",
-]
-
-[[package]]
 name = "owned_ttf_parser"
 version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2985,19 +2946,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e835ff2298f5721608eb1a980ecaee1aef2c132bf95ecc026a11b7bf3c01c02e"
 dependencies = [
  "unicode-ident",
-]
-
-[[package]]
-name = "proc-macro2-diagnostics"
-version = "0.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "af066a9c399a26e020ada66a034357a868728e72cd426f3adcd35f80d88d88c8"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.55",
- "version_check",
- "yansi",
 ]
 
 [[package]]
@@ -4636,12 +4584,6 @@ name = "xxhash-rust"
 version = "0.8.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "927da81e25be1e1a2901d59b81b37dd2efd1fc9c9345a55007f09bf5a2d3ee03"
-
-[[package]]
-name = "yansi"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cfe53a6657fd280eaa890a3bc59152892ffa3e30101319d168b781ed6529b049"
 
 [[package]]
 name = "yazi"

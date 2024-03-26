@@ -6,8 +6,12 @@ license = "GPL-3"
 resolver = "2"
 
 [dependencies]
-iced = { git = "https://github.com/iced-rs/iced.git", features = ["advanced", "canvas", "tokio"] }
-iced_aw = { version = "0.8.0", default-features = false, features = ["icons", "split", "spinner", "menu", "tab_bar", "floating_element", "grid"] }
+iced = { git = "https://github.com/iced-rs/iced.git", features = [
+    "advanced",
+    "canvas",
+    "tokio",
+] }
+iced_aw = { git = "https://github.com/iced-rs/iced_aw", default-features = false, features = ["icons", "split", "spinner", "menu", "tab_bar", "floating_element", "grid"] }# iced_aw = { version = "0.8.0", default-features = false, features = ["icons", "split", "spinner", "menu", "tab_bar", "floating_element", "grid"] }
 rand = "0.8.5"
 sysinfo = "0.30.7"
 # nvml = "0.0.2"

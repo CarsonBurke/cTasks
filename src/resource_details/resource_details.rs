@@ -1,16 +1,13 @@
 use std::borrow::BorrowMut;
 
 use iced::{
-    advanced::graphics::futures::backend::default,
-    font, theme,
-    widget::{
+    advanced::graphics::futures::backend::default, font, theme, widget::{
         button, column, container, horizontal_space, keyed_column, row, scrollable,
         shader::wgpu::{hal::empty::Resource, naga::proc},
         text,
-    },
-    Alignment, Command, Element, Font, Length, Theme,
+    }, Alignment, Command, Element, Font, Length, Renderer, Theme
 };
-use iced_aw::{grid, grid_row, BootstrapIcon, Grid, GridRow};
+use iced_aw::{core::icons, grid, grid_row, icons::Bootstrap, Grid, GridRow};
 use ordered_float::OrderedFloat;
 use sysinfo::{MemoryRefreshKind, Pid, Process, ProcessRefreshKind, RefreshKind, System};
 
@@ -20,6 +17,15 @@ use super::{
     applications_details::{ApplicationsDetails, ApplicationsDetailsMessage},
     memory_detail::{self, MemoryDetails, MemoryDetailsMessage},
 };
+
+pub enum ProcessesHeader {
+    Name,
+    Cpu,
+    Memory,
+    DiskRead,
+    DiskWritten,
+    Kill,
+}
 
 #[derive(Debug)]
 pub struct ProcessDetails {
@@ -41,19 +47,19 @@ pub enum SortDirection {
 #[derive(Debug)]
 pub struct ProcessesDetails {
     pub processes: Vec<ProcessDetails>,
-    pub sort_index: u32,
+    pub sort_header: ProcessesHeader,
     pub sort_direction: SortDirection,
 }
 
 impl ProcessesDetails {
     pub fn sort_by_index(&mut self) {
-        match self.sort_index {
-            1 => self
+        match self.sort_header {
+            ProcessesHeader::Cpu => self
                 .processes
                 .sort_by_key(|process| OrderedFloat(process.cpu_usage)),
-            2 => self.processes.sort_by_key(|process| process.memory_usage),
-            3 => self.processes.sort_by_key(|process| process.disk_read),
-            4 => self.processes.sort_by_key(|process| process.disk_written),
+            ProcessesHeader::Memory => self.processes.sort_by_key(|process| process.memory_usage),
+            ProcessesHeader::DiskRead => self.processes.sort_by_key(|process| process.disk_read),
+            ProcessesHeader::DiskWritten => self.processes.sort_by_key(|process| process.disk_written),
             _ => (), // No sorting
         }
     }
@@ -118,7 +124,7 @@ impl ResourceDetails {
             ResourceType::Processes => {
                 new_self.processes_details = Some(ProcessesDetails {
                     processes: Vec::new(),
-                    sort_index: 0,
+                    sort_header: 0,
                     sort_direction: SortDirection::default(),
                 })
             }
@@ -155,7 +161,7 @@ impl ResourceDetails {
 
                 ProcessesDetailsProcs::sort_by_index(
                     &mut processes,
-                    processes_details.sort_index,
+                    processes_details.sort_header,
                     &processes_details.sort_direction,
                 );
 
@@ -209,13 +215,13 @@ impl ResourceDetails {
                         return;
                     };
 
-                    processes_details.sort_index = sort_index;
+                    processes_details.sort_header = sort_index;
                     // Also reset the sort direction since the user is sorting a different category
                     processes_details.sort_direction = SortDirection::default();
 
                     ProcessesDetailsProcs::sort_by_index(
                         &mut processes_details.processes,
-                        processes_details.sort_index,
+                        processes_details.sort_header,
                         &processes_details.sort_direction,
                     );
                 }
@@ -256,12 +262,16 @@ impl ResourceDetails {
                 let processes_header_strings =
                     vec!["Name", "CPU", "Memory", "Disk Read", "Disk Written", "Kill"];
 
+
+
+
+
                 let processes_headers = GridRow::with_elements({
-                    let mut elements: Vec<iced::Element<_, _, _, _>> = Vec::new();
+                    let mut elements: Vec<Element<ResourceDetailsMessage, Theme, Renderer>> = Vec::new();
 
                     let mut i: u32 = 0;
                     for string in processes_header_strings {
-                        if i == processes_details.sort_index {
+                        if i == processes_details.sort_header {
                             elements.push(
                                 button(
                                     row![
@@ -270,10 +280,10 @@ impl ResourceDetails {
                                         text(String::from({
                                             match processes_details.sort_direction {
                                                 SortDirection::Descending => {
-                                                    BootstrapIcon::CaretUpFill
+                                                    icons::Bootstrap::CaretUpFill
                                                 }
                                                 SortDirection::Ascending => {
-                                                    BootstrapIcon::CaretDownFill
+                                                    icons::Bootstrap::CaretDownFill
                                                 }
                                             }
                                         }))
@@ -286,14 +296,16 @@ impl ResourceDetails {
                                 )
                                 .width(Length::Fill)
                                 .on_press(ResourceDetailsMessage::SwitchSortDirection)
-                                /* .style(theme::Button::Text) */.into(),
+                                /* .style(theme::Button::Text) */
+                                .into(),
                             )
                         } else {
                             elements.push(
                                 button(string)
                                     .width(Length::Fill)
                                     .on_press(ResourceDetailsMessage::SortByIndex(i))
-                                    /* .style(theme::Button::Text) */.into(),
+                                    /* .style(theme::Button::Text) */
+                                    .into(),
                             );
                         }
 
@@ -303,23 +315,37 @@ impl ResourceDetails {
                     elements
                 });
 
-                let processes_totals = grid_row!(
+                // let processes_totals = grid_row!(
+                //     row![
+                //         text(icons::Bootstrap::BarChart.to_string()).font(Font {
+                //             family: font::Family::Name("bootstrap-icons"),
+                //             ..Default::default()
+                //         }),
+                //         text("Total")
+                //     ]
+                //     .spacing(5).into(),
+                //     text("CPU"),
+                //     text("Memory"),
+                //     text("Read"),
+                //     text("Written"),
+                //     text("Action"),
+                // );
+
+                let processes_totals = GridRow::with_elements(vec![
                     row![
-                        text(iced_aw::graphics::icons::BootstrapIcon::BarChart.to_string()).font(
-                            Font {
-                                family: font::Family::Name("bootstrap-icons"),
-                                ..Default::default()
-                            }
-                        ),
+                        text(icons::Bootstrap::BarChart.to_string()).font(Font {
+                            family: font::Family::Name("bootstrap-icons"),
+                            ..Default::default()
+                        }),
                         text("Total")
                     ]
-                    .spacing(5),
-                    text("CPU"),
-                    text("Memory"),
-                    text("Read"),
-                    text("Written"),
-                    text("Action"),
-                );
+                    .spacing(5).into(),
+                    // text("CPU"),
+                    // text("Memory"),
+                    // text("Read"),
+                    // text("Written"),
+                    // text("Action"),
+                ]);
 
                 let main = Grid::with_rows({
                     let mut rows = Vec::new();
@@ -359,7 +385,7 @@ impl ResourceDetails {
 
                 // let main = column![processes_headers, processes].width(Length::Shrink);
 
-                let content = column![header, scrollable(main)]
+                let content = column![header, scrollable(main.into())]
                     .spacing(20)
                     .align_items(Alignment::Center);
 
@@ -384,11 +410,10 @@ impl ResourceDetails {
 
                         column![
                             row![
-                                text(iced_aw::graphics::icons::BootstrapIcon::Memory.to_string())
-                                    .font(Font {
-                                        family: font::Family::Name("bootstrap-icons"),
-                                        ..Default::default()
-                                    }),
+                                text(icons::Bootstrap::Memory.to_string()).font(Font {
+                                    family: font::Family::Name("bootstrap-icons"),
+                                    ..Default::default()
+                                }),
                                 text(String::from("Random Access Memory")),
                                 // i in the top right that takes someone to a description of what RAM is
                             ]
@@ -417,8 +442,10 @@ impl ResourceDetails {
 
                         column![
                             row![
-                                text(iced_aw::graphics::icons::BootstrapIcon::HddRack.to_string())
-                                    .font(iced_aw::BOOTSTRAP_FONT),
+                                text(icons::Bootstrap::HddRack.to_string()).font(Font {
+                                    family: font::Family::Name("bootstrap-icons"),
+                                    ..Default::default()
+                                }),
                                 text(String::from("Swap")) // i in the top right that takes someone to a description of what Swap is
                             ]
                             .spacing(10),
@@ -442,21 +469,18 @@ impl ResourceDetails {
                         ram_details,
                         swap_details,
                         row![
-                            text(iced_aw::graphics::icons::BootstrapIcon::Tools.to_string()).font(
-                                Font {
-                                    family: font::Family::Name("bootstrap-icons"),
-                                    ..Default::default()
-                                }
-                            ),
+                            text(icons::Bootstrap::Tools.to_string()).font(Font {
+                                family: font::Family::Name("bootstrap-icons"),
+                                ..Default::default()
+                            }),
                             text(String::from("Advanced"))
                         ]
                         .spacing(10),
                         row![
-                            text(iced_aw::graphics::icons::BootstrapIcon::InfoCircle.to_string())
-                                .font(Font {
-                                    family: font::Family::Name("bootstrap-icons"),
-                                    ..Default::default()
-                                }),
+                            text(Bootstrap::InfoCircle.to_string()).font(Font {
+                                family: font::Family::Name("bootstrap-icons"),
+                                ..Default::default()
+                            }),
                             text(String::from("About"))
                         ]
                         .spacing(10),

@@ -4,7 +4,8 @@ use constants::{padding, DisplayState, PERCENT_PRECISION};
 use iced::{
     advanced::{
         graphics::{futures::backend::default, text::cosmic_text::SwashImage},
-        widget::Text, Application,
+        widget::Text,
+        Application,
     },
     alignment, color, executor, font, theme,
     widget::{
@@ -14,16 +15,16 @@ use iced::{
         text, text_input, Column, Container, Row, Scrollable, Space,
     },
     window::{icon, Icon},
-    Alignment, Color, Command, Element, Font, Length, Pixels, Renderer,
-    Settings, Subscription, Theme,
+    Alignment, Color, Command, Element, Font, Length, Pixels, Renderer, Settings, Subscription,
+    Theme,
 };
 use iced_aw::{
-    floating_element::{self, Anchor}, graphics::icons::{self, icon_to_char}, native::Split, spinner, split, BootstrapIcon, FloatingElement, NerdIcon, Spinner, NERD_FONT
+    core::icons,
+    floating_element::{self, Anchor},
+    spinner, split, FloatingElement, Spinner, NERD_FONT,
 };
 use resource_details::resource_details::{ResourceDetails, ResourceDetailsMessage};
-use styles::{
-    container::{main_content, sidebar},
-};
+use styles::container::{main_content, sidebar};
 use sysinfo::{
     Cpu, CpuRefreshKind, Disks, MemoryRefreshKind, Networks, ProcessRefreshKind, RefreshKind,
     System, UpdateKind,
@@ -105,6 +106,7 @@ impl Application for App {
     type Theme = Theme;
     type Executor = executor::Default;
     type Flags = ();
+    type Renderer = Renderer;
 
     fn new(_flags: ()) -> (Self, Command<Message>) {
         let system_info = System::new_all();
@@ -245,16 +247,18 @@ impl Application for App {
                 .align_y(alignment::Vertical::Center); */
 
                 let sidebar_header = row![
-                    // text(iced_aw::graphics::icons::BootstrapIcon::List.to_string())
+                    // text(icons::Bootstrap::List.to_string())
                     //     .font(iced_aw::BOOTSTRAP_FONT),
                     // text(String::from("C Tasks")),
-                    // text(iced_aw::graphics::icons::BootstrapIcon::LayoutSidebar.to_string())
+                    // text(icons::Bootstrap::LayoutSidebar.to_string())
                     //     .font(iced_aw::BOOTSTRAP_FONT),
                     horizontal_space(),
                     text(String::from("C Tasks")),
                     horizontal_space(),
-                    text(iced_aw::graphics::icons::BootstrapIcon::List.to_string())
-                        .font(Font {family: font::Family::Name("bootstrap-icons"), ..Default::default() }),
+                    text(icons::Bootstrap::List.to_string()).font(Font {
+                        family: font::Family::Name("bootstrap-icons"),
+                        ..Default::default()
+                    }),
                 ]
                 .spacing(10);
 
@@ -293,9 +297,9 @@ impl Application for App {
                 //         .size(20)
                 //         .font(Font::MONOSPACE),
                 //     horizontal_space(),
-                //     text(iced_aw::graphics::icons::BootstrapIcon::Dash.to_string())
+                //     text(icons::Bootstrap::Dash.to_string())
                 //         .font(iced_aw::BOOTSTRAP_FONT),
-                //     text(iced_aw::graphics::icons::BootstrapIcon::X.to_string())
+                //     text(icons::Bootstrap::X.to_string())
                 //         .font(iced_aw::BOOTSTRAP_FONT),
                 // ])
                 // .width(Length::Fill)
@@ -315,15 +319,13 @@ impl Application for App {
                 //     .width(Length::Fill)
                 //     .padding(padding::MAIN);
 
-                let main = container(
-                    Scrollable::new(
-                        column![self
-                            .main_content
-                            .view()
-                            .map(move |message| Message::ResourceDetailsMessage(message))]
-                        .spacing(10),
-                    ),
-                )
+                let main = container(Scrollable::new(
+                    column![self
+                        .main_content
+                        .view()
+                        .map(move |message| Message::ResourceDetailsMessage(message))]
+                    .spacing(10),
+                ))
                 .style(main_content)
                 .width(Length::Fill)
                 .height(Length::Fill)
@@ -332,10 +334,10 @@ impl Application for App {
                 let left = sidebar;
                 let right = column![/* header, */ main /* footer */,].width(Length::FillPortion(3));
 
-                let container = container(row![left, right]
-                    /* FloatingElement::new(row![left, right], floating_content)
-                        .anchor(Anchor::SouthEast)
-                        .hide(false) */,
+                let container = container(
+                    row![left, right], /* FloatingElement::new(row![left, right], floating_content)
+                                       .anchor(Anchor::SouthEast)
+                                       .hide(false) */
                 );
                 container.into()
             }
@@ -508,25 +510,25 @@ impl SidebarItemParent {
 
     fn view(&self, i: usize) -> Element<SidebarItemParentMessage> {
         match self.resource {
-            ResourceType::Applications => String::from(BootstrapIcon::WindowStack),
-            ResourceType::Processes => String::from(BootstrapIcon::PersonWorkspace),
-            ResourceType::Cpu => String::from(BootstrapIcon::Cpu),
-            ResourceType::Memory => String::from(BootstrapIcon::Memory),
-            ResourceType::Gpu => String::from(BootstrapIcon::GpuCard),
-            ResourceType::Disk => String::from(BootstrapIcon::Hdd),
-            ResourceType::Wifi => String::from(BootstrapIcon::Wifi),
-            ResourceType::Ethernet => String::from(BootstrapIcon::DiagramTwo),
+            ResourceType::Applications => String::from(icons::Bootstrap::WindowStack),
+            ResourceType::Processes => String::from(icons::Bootstrap::PersonWorkspace),
+            ResourceType::Cpu => String::from(icons::Bootstrap::Cpu),
+            ResourceType::Memory => String::from(icons::Bootstrap::Memory),
+            ResourceType::Gpu => String::from(icons::Bootstrap::GpuCard),
+            ResourceType::Disk => String::from(icons::Bootstrap::Hdd),
+            ResourceType::Wifi => String::from(icons::Bootstrap::Wifi),
+            ResourceType::Ethernet => String::from(icons::Bootstrap::DiagramTwo),
         };
 
         let icon_text = match self.resource {
-            ResourceType::Applications => String::from(BootstrapIcon::WindowStack),
-            ResourceType::Processes => String::from(BootstrapIcon::PersonWorkspace),
-            ResourceType::Cpu => String::from(BootstrapIcon::Cpu),
-            ResourceType::Memory => String::from(BootstrapIcon::Memory),
-            ResourceType::Gpu => String::from(BootstrapIcon::GpuCard),
-            ResourceType::Disk => String::from(BootstrapIcon::Hdd),
-            ResourceType::Wifi => String::from(BootstrapIcon::Wifi),
-            ResourceType::Ethernet => String::from(BootstrapIcon::DiagramTwo),
+            ResourceType::Applications => String::from(icons::Bootstrap::WindowStack),
+            ResourceType::Processes => String::from(icons::Bootstrap::PersonWorkspace),
+            ResourceType::Cpu => String::from(icons::Bootstrap::Cpu),
+            ResourceType::Memory => String::from(icons::Bootstrap::Memory),
+            ResourceType::Gpu => String::from(icons::Bootstrap::GpuCard),
+            ResourceType::Disk => String::from(icons::Bootstrap::Hdd),
+            ResourceType::Wifi => String::from(icons::Bootstrap::Wifi),
+            ResourceType::Ethernet => String::from(icons::Bootstrap::DiagramTwo),
         };
 
         let preview_state = {
@@ -542,7 +544,10 @@ impl SidebarItemParent {
         let container = container(
             column![
                 row![
-                    text(icon_text).font(Font {family: font::Family::Name("bootstrap-icons"), ..Default::default() }),
+                    text(icon_text).font(Font {
+                        family: font::Family::Name("bootstrap-icons"),
+                        ..Default::default()
+                    }),
                     text(self.header.clone()),
                     text(self.metric.clone().unwrap_or("".to_string())).size(10),
                     // {
