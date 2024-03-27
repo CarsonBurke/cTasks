@@ -13,10 +13,8 @@ struct ResourceChartMessage {}
 
 #[derive(Debug, Default)]
 pub struct ResourceChart {
-    /// Tick, data point => x, y
-    data: HashMap<i32, f32>,
     // 31 ticks of data
-    data_points: VecDeque<(i32, i32)>,
+    pub data_points: VecDeque<(i32, i32)>,
 }
 
 impl Chart<ResourceDetailsMessage> for ResourceChart {
@@ -73,45 +71,44 @@ impl Chart<ResourceDetailsMessage> for ResourceChart {
 
 impl ResourceChart {
     pub fn new() -> Self {
-        let mut data = HashMap::new();
-        data.insert(5, 5.);
-        data.insert(25, 25.);
-        data.insert(10, 30.);
-
         let mut data_points = VecDeque::new();
-        data_points.push_back((0, 0));
-        data_points.push_back((1, 5));
-        data_points.push_back((2, 25));
-        data_points.push_back((3, 30));
-        data_points.push_back((4, 10));
-        data_points.push_back((5, 5));
-        data_points.push_back((6, 12));
-        data_points.push_back((7, 15));
-        data_points.push_back((8, 20));
-        data_points.push_back((9, 10));
-        data_points.push_back((10, 5));
-        data_points.push_back((11, 16));
-        data_points.push_back((12, 10));
-        data_points.push_back((13, 18));
-        data_points.push_back((14, 22));
-        data_points.push_back((15, 28));
-        data_points.push_back((16, 20));
-        data_points.push_back((17, 14));
-        data_points.push_back((18, 12));
-        data_points.push_back((19, 26));
-        data_points.push_back((20, 24));
-        data_points.push_back((21, 20));
-        data_points.push_back((22, 18));
-        data_points.push_back((23, 26));
-        data_points.push_back((24, 14));
-        data_points.push_back((25, 22));
-        data_points.push_back((26, 30));
-        data_points.push_back((27, 10));
-        data_points.push_back((28, 28));
-        data_points.push_back((29, 16));
-        data_points.push_back((30, 16));
+        // data_points.push_back((0, 0));
+        // data_points.push_back((1, 5));
+        // data_points.push_back((2, 25));
+        // data_points.push_back((3, 30));
+        // data_points.push_back((4, 10));
+        // data_points.push_back((5, 5));
+        // data_points.push_back((6, 12));
+        // data_points.push_back((7, 15));
+        // data_points.push_back((8, 20));
+        // data_points.push_back((9, 10));
+        // data_points.push_back((10, 5));
+        // data_points.push_back((11, 16));
+        // data_points.push_back((12, 10));
+        // data_points.push_back((13, 18));
+        // data_points.push_back((14, 22));
+        // data_points.push_back((15, 28));
+        // data_points.push_back((16, 20));
+        // data_points.push_back((17, 14));
+        // data_points.push_back((18, 12));
+        // data_points.push_back((19, 26));
+        // data_points.push_back((20, 24));
+        // data_points.push_back((21, 20));
+        // data_points.push_back((22, 18));
+        // data_points.push_back((23, 26));
+        // data_points.push_back((24, 14));
+        // data_points.push_back((25, 22));
+        // data_points.push_back((26, 30));
+        // data_points.push_back((27, 10));
+        // data_points.push_back((28, 28));
+        // data_points.push_back((29, 16));
+        // data_points.push_back((30, 16));
 
-        Self { data, data_points }
+        Self { data_points }
+    }
+
+    pub fn set_data() {
+
     }
 
     pub fn view(&self) -> Element<ResourceDetailsMessage> {

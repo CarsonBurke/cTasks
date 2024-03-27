@@ -35,6 +35,8 @@ use sysinfo::{
     System, UpdateKind,
 };
 
+use crate::constants::HISTORY_TICKS;
+
 mod constants;
 mod resource_details;
 mod resource_previews;
@@ -60,12 +62,13 @@ impl CustomThemeChoice {
 // Consider a vec format instead, due to performance in displaying graphs (presumably they take in an array of values)
 // However a vec format will probably have to handle skipped ticks by reformatting the vector, which might ruin any performance benefits
 pub struct ResourceHistoryTick {
-    pub tick: u64,
+    pub tick: u128,
     pub cpu_usage_percent: f32,
     pub cpu_cores_usage_percent: f32,
     pub gpu_usage_percent: f32,
     pub vram_usage: f32,
-    pub memory_usage_percent: f32,
+    pub ram_usage_percent: f32,
+    pub swap_usage_percent: f32,
     pub disk_write: f32,
     pub disk_read: f32,
 }
@@ -101,9 +104,10 @@ struct App {
     disk_info: Disks,
     network_info: Networks,
     cpu_usage_percent: f32,
-    memory_usage_percent: f32,
+    ram_usage_percent: f32,
+    swap_usage_percent: f32,
     state: AppState,
-    tick: u64,
+    tick: u128,
     history: Vec<ResourceHistoryTick>,
 }
 
@@ -205,7 +209,7 @@ impl Application for App {
                         // Relative to the number of logical cores. So 200% means 2 cores fully used
                         let mut total_used: f32 = 0.;
                         let mut cpu_count: u32 = 0;
-        
+
                         for cpu in cpus {
                             total_used += cpu.cpu_usage();
                             cpu_count += 1;
@@ -218,22 +222,61 @@ impl Application for App {
                         self.cpu_brand = global_cpu_info.brand().to_string();
                         self.cpu_frequency = global_cpu_info.frequency();
 
-                        // memory
+                        // ram
 
                         let total_used = self.system_info.used_memory();
                         let total_capacity = self.system_info.total_memory();
-        
-                        self.memory_usage_percent = total_used as f32 / total_capacity as f32 * 100.;
+
+                        self.ram_usage_percent = total_used as f32 / total_capacity as f32 * 100.;
+
+                        // swap
+
+                        let total_used = self.system_info.used_swap();
+                        let total_capacity = self.system_info.total_swap();
+
+                        self.swap_usage_percent = total_used as f32 / total_capacity as f32 * 100.;
+
+                        // manage history
+
+                        self.history.retain(|tick_data| {
+                            (tick_data.tick + HISTORY_TICKS as u128) < self.tick as u128
+                        });
+
+                        self.history.push(ResourceHistoryTick {
+                            tick: self.tick,
+                            cpu_usage_percent: self.cpu_usage_percent,
+                            cpu_cores_usage_percent: total_used as f32 / cpu_count as f32,
+                            gpu_usage_percent: 0.,
+                            vram_usage: 0.,
+                            ram_usage_percent: self.ram_usage_percent,
+                            swap_usage_percent: self.swap_usage_percent,
+                            disk_write: 0.,
+                            disk_read: 0.,
+                        });
 
                         //
 
                         println!("tick: {}", self.tick);
                         for element in self.sidebar_items.iter_mut() {
-                            element.on_tick(&self.system_info, self.cpu_usage_percent, self.memory_usage_percent, &self.disk_info, &self.network_info);
+                            element.on_tick(
+                                &self.system_info,
+                                self.cpu_usage_percent,
+                                self.ram_usage_percent,
+                                &self.disk_info,
+                                &self.network_info,
+                            );
                         }
 
-                        self.main_content
-                            .on_tick(&mut self.system_info, self.cpu_usage_percent, self.physical_cpu_count, self.logical_cpu_count, self.cpu_brand.clone(), self.cpu_frequency);
+                        self.main_content.on_tick(
+                            &mut self.system_info,
+                            self.cpu_usage_percent,
+                            self.physical_cpu_count,
+                            self.logical_cpu_count,
+                            self.cpu_brand.clone(),
+                            self.cpu_frequency,
+                            &self.history,
+                            self.tick,
+                        );
                     }
                     Message::ResourceDetailsMessage(resource_details_message) => {
                         let _ = self
@@ -251,8 +294,16 @@ impl Application for App {
                     }
                     Message::SetResourceDetails(resource) => {
                         self.main_content.apply_resource_type(resource);
-                        self.main_content
-                            .on_tick(&mut self.system_info, self.cpu_usage_percent, self.physical_cpu_count, self.logical_cpu_count, self.cpu_brand.clone(), self.cpu_frequency);
+                        self.main_content.on_tick(
+                            &mut self.system_info,
+                            self.cpu_usage_percent,
+                            self.physical_cpu_count,
+                            self.logical_cpu_count,
+                            self.cpu_brand.clone(),
+                            self.cpu_frequency,
+                            &self.history,
+                            self.tick,
+                        );
                     }
                     _ => {}
                 }
@@ -379,7 +430,8 @@ impl Application for App {
                 )
                 .style(main_content())
                 .width(Length::Fill)
-                .height(Length::Fill).center_x();
+                .height(Length::Fill)
+                .center_x();
 
                 let left = sidebar;
                 let right = column![/* header, */ main /* footer */,].width(Length::FillPortion(3));
@@ -481,7 +533,14 @@ impl SidebarItemParent {
         }
     }
 
-    fn on_tick(&mut self, system_info: &System, cpu_usage_percent: f32, memory_usage_percent: f32, disk_info: &Disks, network_info: &Networks) {
+    fn on_tick(
+        &mut self,
+        system_info: &System,
+        cpu_usage_percent: f32,
+        memory_usage_percent: f32,
+        disk_info: &Disks,
+        network_info: &Networks,
+    ) {
         let (usage_percent, metric): (Option<f32>, Option<String>) = match self.resource {
             ResourceType::Applications => (None, None),
             ResourceType::Processes => {
@@ -490,7 +549,6 @@ impl SidebarItemParent {
                 (None, Some(processes.len().to_string()))
             }
             ResourceType::Cpu => {
-
                 let usage_percent = cpu_usage_percent;
                 self.usage_percent = Some(usage_percent);
                 self.metric = Some(format!("{:.1}%", usage_percent));
@@ -498,7 +556,6 @@ impl SidebarItemParent {
                 (Some(usage_percent), Some(format!("{:.1}%", usage_percent)))
             }
             ResourceType::Memory => {
-
                 let usage_percent = memory_usage_percent;
 
                 (Some(usage_percent), Some(format!("{:.1}%", usage_percent)))

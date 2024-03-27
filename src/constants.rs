@@ -22,6 +22,9 @@ pub enum DisplayState {
 /// How many decimals to show for percentage values.
 /// TODO: Make this user configurable
 pub const PERCENT_PRECISION: u8 = 1;
+/// How many ticks to keep contigious history for
+// TODO: Make this user configurable
+pub const HISTORY_TICKS: u32 = 30;
 
 pub mod custom_theme {
     use iced::Color;
