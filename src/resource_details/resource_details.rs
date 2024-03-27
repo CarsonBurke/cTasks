@@ -449,9 +449,7 @@ impl ResourceDetails {
                 .column_spacing(0)
                 .padding(padding::MAIN);
 
-                let content = column![header, scrollable(main)]
-                    .spacing(20)
-                    .align_items(Alignment::Center);
+                let content = column![header, scrollable(main)].spacing(20).align_items(alignment::Alignment::Center);
 
                 let container = container(content);
                 container.into()
@@ -487,14 +485,8 @@ impl ResourceDetails {
                                             .style(Text::Color(custom_theme::GREY_TEXT)),
                                         text(format!(
                                             "{:.2} / {:.2} GB",
-                                            memory_details.ram_usage as f64
-                                                / 1024.
-                                                / 1024.
-                                                / 1024.,
-                                            memory_details.ram_total as f64
-                                                / 1024.
-                                                / 1024.
-                                                / 1024.
+                                            memory_details.ram_usage as f64 / 1024. / 1024. / 1024.,
+                                            memory_details.ram_total as f64 / 1024. / 1024. / 1024.
                                         )),
                                     ],
                                     horizontal_space(),
@@ -717,9 +709,7 @@ impl ResourceDetails {
                 .width(Length::Fill)
                 .padding(padding::MAIN);
 
-                let content = column![header, scrollable(main)]
-                    .spacing(20)
-                    .align_items(Alignment::Center);
+                let content = column![header, scrollable(main)].spacing(20);
 
                 let container = container(content);
                 container.into()
@@ -867,7 +857,7 @@ impl ResourceDetails {
                 .width(Length::Fill)
                 .padding(padding::MAIN);
 
-                let content = column![header, scrollable(main)];
+                let content = column![header, scrollable(main)].spacing(20);
 
                 let container = container(content);
                 container.into()
