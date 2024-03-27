@@ -94,9 +94,14 @@ struct App {
     main_content: ResourceDetails,
     tick_interval: u64,
     system_info: System,
-    cpu_count: u32,
+    physical_cpu_count: u32,
+    logical_cpu_count: u32,
+    cpu_brand: String,
+    cpu_frequency: u64,
     disk_info: Disks,
     network_info: Networks,
+    cpu_usage_percent: f32,
+    memory_usage_percent: f32,
     state: AppState,
     tick: u64,
     history: Vec<ResourceHistoryTick>,
@@ -114,7 +119,8 @@ impl Application for App {
 
     fn new(_flags: ()) -> (Self, Command<Message>) {
         let system_info = System::new_all();
-        let cpu_count = system_info.physical_core_count().unwrap_or(1) as u32/* system_info.cpus().len() as u32 */;
+        let physical_cpu_count = system_info.physical_core_count().unwrap_or(1) as u32/* system_info.cpus().len() as u32 */;
+        let logical_cpu_count = system_info.cpus().len() as u32;
 
         (
             Self {
@@ -122,7 +128,8 @@ impl Application for App {
                 state: AppState::Loading,
                 preferences: Preferences::new(),
                 system_info,
-                cpu_count,
+                physical_cpu_count,
+                logical_cpu_count,
                 tick: 0,
                 history: Vec::new(),
                 ..Default::default()
@@ -192,13 +199,41 @@ impl Application for App {
                         self.disk_info = Disks::new_with_refreshed_list();
                         self.network_info = Networks::new_with_refreshed_list();
 
+                        // cpu usage
+
+                        let cpus = self.system_info.cpus();
+                        // Relative to the number of logical cores. So 200% means 2 cores fully used
+                        let mut total_used: f32 = 0.;
+                        let mut cpu_count: u32 = 0;
+        
+                        for cpu in cpus {
+                            total_used += cpu.cpu_usage();
+                            cpu_count += 1;
+                        }
+
+                        self.cpu_usage_percent = total_used / cpu_count as f32;
+
+                        let global_cpu_info = self.system_info.global_cpu_info();
+
+                        self.cpu_brand = global_cpu_info.brand().to_string();
+                        self.cpu_frequency = global_cpu_info.frequency();
+
+                        // memory
+
+                        let total_used = self.system_info.used_memory();
+                        let total_capacity = self.system_info.total_memory();
+        
+                        self.memory_usage_percent = total_used as f32 / total_capacity as f32 * 100.;
+
+                        //
+
                         println!("tick: {}", self.tick);
                         for element in self.sidebar_items.iter_mut() {
-                            element.on_tick(&self.system_info, &self.disk_info, &self.network_info);
+                            element.on_tick(&self.system_info, self.cpu_usage_percent, self.memory_usage_percent, &self.disk_info, &self.network_info);
                         }
 
                         self.main_content
-                            .on_tick(&mut self.system_info, self.cpu_count);
+                            .on_tick(&mut self.system_info, self.cpu_usage_percent, self.physical_cpu_count, self.logical_cpu_count, self.cpu_brand.clone(), self.cpu_frequency);
                     }
                     Message::ResourceDetailsMessage(resource_details_message) => {
                         let _ = self
@@ -217,7 +252,7 @@ impl Application for App {
                     Message::SetResourceDetails(resource) => {
                         self.main_content.apply_resource_type(resource);
                         self.main_content
-                            .on_tick(&mut self.system_info, self.cpu_count);
+                            .on_tick(&mut self.system_info, self.cpu_usage_percent, self.physical_cpu_count, self.logical_cpu_count, self.cpu_brand.clone(), self.cpu_frequency);
                     }
                     _ => {}
                 }
@@ -446,7 +481,7 @@ impl SidebarItemParent {
         }
     }
 
-    fn on_tick(&mut self, system_info: &System, disk_info: &Disks, network_info: &Networks) {
+    fn on_tick(&mut self, system_info: &System, cpu_usage_percent: f32, memory_usage_percent: f32, disk_info: &Disks, network_info: &Networks) {
         let (usage_percent, metric): (Option<f32>, Option<String>) = match self.resource {
             ResourceType::Applications => (None, None),
             ResourceType::Processes => {
@@ -455,28 +490,16 @@ impl SidebarItemParent {
                 (None, Some(processes.len().to_string()))
             }
             ResourceType::Cpu => {
-                let cpus = system_info.cpus();
-                // Relative to the number of cores. So 200% means 2 cores fully used
-                let mut total_used: f32 = 0.;
-                let mut cpu_count: u32 = 0;
 
-                for cpu in cpus {
-                    total_used += cpu.cpu_usage();
-                    cpu_count += 1;
-                }
-
-                // Make it relative to total core usage
-                let usage_percent = total_used / cpu_count as f32;
+                let usage_percent = cpu_usage_percent;
                 self.usage_percent = Some(usage_percent);
-                self.metric = Some(format!("{:.1}%", total_used));
+                self.metric = Some(format!("{:.1}%", usage_percent));
 
                 (Some(usage_percent), Some(format!("{:.1}%", usage_percent)))
             }
             ResourceType::Memory => {
-                let total_used = system_info.used_memory();
-                let total_capacity = system_info.total_memory();
 
-                let usage_percent = total_used as f32 / total_capacity as f32 * 100.;
+                let usage_percent = memory_usage_percent;
 
                 (Some(usage_percent), Some(format!("{:.1}%", usage_percent)))
             }
@@ -515,7 +538,7 @@ impl SidebarItemParent {
 
                 (
                     None,
-                    Some(format!("{:.1}% {:.1}%", total_received, total_transmitted)),
+                    Some(format!("{:.1} {:.1}", total_received, total_transmitted)),
                 )
             }
             ResourceType::Ethernet => (None, None),

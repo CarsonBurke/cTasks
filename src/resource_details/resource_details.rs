@@ -5,7 +5,7 @@ use iced::{
     alignment,
     theme::{self, Text},
     widget::{
-        self, button, column, container, horizontal_space, keyed_column, row, scrollable,
+        self, button, checkbox, column, container, horizontal_space, keyed_column, row, scrollable,
         shader::wgpu::{hal::empty::Resource, naga::proc},
         text, text_input,
     },
@@ -93,6 +93,16 @@ impl ProcessesDetailsProcs {
     }
 }
 
+#[derive(Debug)]
+pub struct CpuDetails {
+    pub cpu_usage_percent: f32,
+    pub physical_core_count: u32,
+    pub logical_core_count: u32,
+    pub cpu_chart: ResourceChart,
+    pub brand: String,
+    pub frequency: u64,
+}
+
 #[derive(Debug, Clone)]
 pub enum ResourceDetailsMessage {
     KillProcessId(Pid),
@@ -109,6 +119,7 @@ pub struct ResourceDetails {
     preview_values: Option<u32>,
     memory_details: Option<MemoryDetails>,
     processes_details: Option<ProcessesDetails>,
+    cpu_details: Option<CpuDetails>,
 }
 
 impl ResourceDetails {
@@ -142,11 +153,29 @@ impl ResourceDetails {
                     swap_chart: ResourceChart::new(),
                 })
             }
+            ResourceType::Cpu => {
+                self.cpu_details = Some(CpuDetails {
+                    cpu_usage_percent: 0.0,
+                    physical_core_count: 0,
+                    logical_core_count: 0,
+                    brand: String::new(),
+                    frequency: 0,
+                    cpu_chart: ResourceChart::new(),
+                })
+            }
             _ => {}
         };
     }
 
-    pub fn on_tick(&mut self, system_info: &mut System, cpu_count: u32) {
+    pub fn on_tick(
+        &mut self,
+        system_info: &mut System,
+        cpu_usage_percent: f32,
+        physical_cpu_count: u32,
+        logical_cpu_count: u32,
+        cpu_brand: String,
+        cpu_frequency: u64,
+    ) {
         match self.resource {
             ResourceType::Applications => {}
             ResourceType::Processes => {
@@ -191,7 +220,7 @@ impl ResourceDetails {
                     processes.push(ProcessDetails {
                         name: process.name().to_string(),
                         id: pid.clone(),
-                        cpu_usage: process.cpu_usage() / cpu_count as f32,
+                        cpu_usage: process.cpu_usage() / logical_cpu_count as f32,
                         memory_usage: process.memory(),
                         disk_read: disk_usage.read_bytes,
                         disk_written: disk_usage.written_bytes,
@@ -220,7 +249,17 @@ impl ResourceDetails {
                 memory_details.swap_usage = system_info.used_swap();
                 memory_details.swap_total = system_info.total_swap();
             }
-            ResourceType::Cpu => {}
+            ResourceType::Cpu => {
+                let Some(cpu_details) = &mut self.cpu_details else {
+                    return;
+                };
+
+                cpu_details.cpu_usage_percent = cpu_usage_percent;
+                cpu_details.physical_core_count = physical_cpu_count;
+                cpu_details.logical_core_count = logical_cpu_count;
+                cpu_details.brand = cpu_brand;
+                cpu_details.frequency = cpu_frequency;
+            }
             ResourceType::Gpu => {}
             ResourceType::Disk => {}
             ResourceType::Wifi => {}
@@ -441,26 +480,51 @@ impl ResourceDetails {
                         if memory_details.ram_usage == 0 || memory_details.ram_total == 0 {
                             column!["No RAM data to display"]
                         } else {
-                            let ram_percent =
-                                memory_details.ram_usage * 100 / memory_details.ram_total;
-
                             column![
                                 row![
-                                    text(format!(
-                                        "{:.2} / {:.2} GB",
-                                        memory_details.ram_usage as f64 / 1024. / 1024. / 1024.,
-                                        memory_details.ram_total as f64 / 1024. / 1024. / 1024.
-                                    )),
-                                    /* use a dot like with lists */
-                                    text(String::from(" • ")),
-                                    text(format!("{}%", ram_percent))
-                                ],
-                                memory_details.ram_chart.view(),
+                                    column![
+                                        text(String::from("Usage"))
+                                            .style(Text::Color(custom_theme::GREY_TEXT)),
+                                        text(format!(
+                                            "{:.2} / {:.2} GB",
+                                            memory_details.ram_usage as f64
+                                                / 1024.
+                                                / 1024.
+                                                / 1024.,
+                                            memory_details.ram_total as f64
+                                                / 1024.
+                                                / 1024.
+                                                / 1024.
+                                        )),
+                                    ],
+                                    horizontal_space(),
+                                    column![
+                                        row![
+                                            horizontal_space(),
+                                            text(String::from("Percent used"))
+                                                .style(Text::Color(custom_theme::GREY_TEXT))
+                                        ],
+                                        row![
+                                            horizontal_space(),
+                                            text(format!(
+                                                "{:.1}%",
+                                                memory_details.ram_usage as f64
+                                                    / memory_details.ram_total as f64
+                                                    * 100.
+                                            )),
+                                        ],
+                                    ]
+                                ]
+                                .padding(padding::MAIN),
+                                container(row![])
+                                    .style(divider_background_1())
+                                    .width(Length::Fill)
+                                    .height(1),
+                                container(memory_details.ram_chart.view()) //.padding(padding::MAIN),
                             ]
                             .spacing(5)
                         }
                     })
-                    .padding(padding::MAIN)
                     .style(resource_details_child())
                     .width(Length::Fill)
                     .center_y()
@@ -480,23 +544,51 @@ impl ResourceDetails {
                         if memory_details.swap_usage == 0 || memory_details.swap_total == 0 {
                             column!["No Swap data to display"]
                         } else {
-                            let swap_percent =
-                                memory_details.swap_usage * 100 / memory_details.swap_total;
-
-                            column![row![
-                                text(format!(
-                                    "{:.2} / {:.2} GB",
-                                    memory_details.swap_usage as f64 / 1024. / 1024. / 1024.,
-                                    memory_details.swap_total as f64 / 1024. / 1024. / 1024.
-                                )),
-                                /* use a dot like with lists */
-                                text(String::from(" • ")),
-                                text(format!("{}%", swap_percent))
-                            ],]
+                            column![
+                                row![
+                                    column![
+                                        text(String::from("Usage"))
+                                            .style(Text::Color(custom_theme::GREY_TEXT)),
+                                        text(format!(
+                                            "{:.2} / {:.2} GB",
+                                            memory_details.swap_usage as f64
+                                                / 1024.
+                                                / 1024.
+                                                / 1024.,
+                                            memory_details.swap_total as f64
+                                                / 1024.
+                                                / 1024.
+                                                / 1024.
+                                        )),
+                                    ],
+                                    horizontal_space(),
+                                    column![
+                                        row![
+                                            horizontal_space(),
+                                            text(String::from("Percent used"))
+                                                .style(Text::Color(custom_theme::GREY_TEXT))
+                                        ],
+                                        row![
+                                            horizontal_space(),
+                                            text(format!(
+                                                "{:.1}%",
+                                                memory_details.swap_usage as f64
+                                                    / memory_details.swap_total as f64
+                                                    * 100.
+                                            )),
+                                        ],
+                                    ]
+                                ]
+                                .padding(padding::MAIN),
+                                container(row![])
+                                    .style(divider_background_1())
+                                    .width(Length::Fill)
+                                    .height(1),
+                                container(memory_details.swap_chart.view()) //.padding(padding::MAIN),
+                            ]
                             .spacing(5)
                         }
                     })
-                    .padding(padding::MAIN)
                     .style(resource_details_child())
                     .width(Length::Fill)
                     .center_y()
@@ -633,7 +725,149 @@ impl ResourceDetails {
                 container.into()
             }
             ResourceType::Cpu => {
-                let content = row![];
+                let Some(cpu_details) = &self.cpu_details else {
+                    return text("Waiting for tick").into();
+                };
+
+                let header = container(row!["CPU"])
+                    .center_x()
+                    .style(resource_details_header())
+                    .width(Length::Fill)
+                    .padding(padding::MAIN);
+
+                let cpu_details_ui = column![
+                    row![
+                        text(iced_aw::graphics::icons::BootstrapIcon::Cpu.to_string())
+                            .font(iced_aw::BOOTSTRAP_FONT)
+                            .size(font_sizes::H2),
+                        text(String::from("CPU")).size(font_sizes::H2),
+                        horizontal_space(),
+                        checkbox("logical cores", false)
+                    ]
+                    .spacing(padding::MAIN),
+                    container(column![
+                        row![
+                            column![
+                                text(String::from("Percent used"))
+                                    .style(Text::Color(custom_theme::GREY_TEXT)),
+                                text(format!("{:.1}%", cpu_details.cpu_usage_percent)),
+                            ],
+                            horizontal_space(),
+                            column![
+                                row![
+                                    horizontal_space(),
+                                    text(String::from("Frequency"))
+                                        .style(Text::Color(custom_theme::GREY_TEXT))
+                                ],
+                                row![
+                                    horizontal_space(),
+                                    text(format!("{:.2}Hz", cpu_details.frequency))
+                                ],
+                            ]
+                        ]
+                        .padding(padding::MAIN)
+                        .spacing(padding::PORTION),
+                        container(row![])
+                            .style(divider_background_1())
+                            .width(Length::Fill)
+                            .height(1),
+                        cpu_details.cpu_chart.view(),
+                    ])
+                    .style(resource_details_child())
+                    .width(Length::Fill)
+                    .center_y()
+                ]
+                .max_width(sizings::MAX_MAIN_CONTENT_CHILDREN_WIDTH)
+                .spacing(padding::PORTION);
+
+                let thermals = column![
+                    row![
+                        text(iced_aw::graphics::icons::BootstrapIcon::Thermometer.to_string())
+                            .font(iced_aw::BOOTSTRAP_FONT)
+                            .size(font_sizes::H2),
+                        text(String::from("Thermals")).size(font_sizes::H2)
+                    ]
+                    .spacing(padding::MAIN),
+                    container(column![column![
+                        text(String::from("Temperature"))
+                            .style(Text::Color(custom_theme::GREY_TEXT)),
+                        text(String::from("25℃")),
+                    ]
+                    .padding(padding::MAIN)
+                    .spacing(padding::PORTION),])
+                    .style(resource_details_child())
+                    .width(Length::Fill)
+                    .center_y()
+                ]
+                .max_width(sizings::MAX_MAIN_CONTENT_CHILDREN_WIDTH)
+                .spacing(padding::PORTION);
+
+                let about = column![
+                    row![
+                        text(iced_aw::graphics::icons::BootstrapIcon::InfoCircle.to_string())
+                            .font(iced_aw::BOOTSTRAP_FONT)
+                            .size(font_sizes::H2),
+                        text(String::from("About")).size(font_sizes::H2)
+                    ]
+                    .spacing(padding::MAIN),
+                    container(column![
+                        column![
+                            text(String::from("Physical cores"))
+                                .style(Text::Color(custom_theme::GREY_TEXT)),
+                            text(format!("{}", cpu_details.physical_core_count)),
+                        ]
+                        .padding(padding::MAIN)
+                        .spacing(padding::PORTION),
+                        container(row![])
+                            .style(divider_background_1())
+                            .width(Length::Fill)
+                            .height(1),
+                        column![
+                            text(String::from("Logical cores"))
+                                .style(Text::Color(custom_theme::GREY_TEXT)),
+                            text(format!("{}", cpu_details.logical_core_count)),
+                        ]
+                        .padding(padding::MAIN)
+                        .spacing(padding::PORTION),
+                        container(row![])
+                            .style(divider_background_1())
+                            .width(Length::Fill)
+                            .height(1),
+                        column![
+                            text(String::from("Brand")).style(Text::Color(custom_theme::GREY_TEXT)),
+                            text(format!("{}", cpu_details.brand)),
+                        ]
+                        .padding(padding::MAIN)
+                        .spacing(padding::PORTION),
+                        container(row![])
+                            .style(divider_background_1())
+                            .width(Length::Fill)
+                            .height(1),
+                        column![
+                            text(String::from("Frequency"))
+                                .style(Text::Color(custom_theme::GREY_TEXT)),
+                            text(format!("{}Hz", cpu_details.frequency)),
+                        ]
+                        .padding(padding::MAIN)
+                        .spacing(padding::PORTION),
+                    ])
+                    .style(resource_details_child())
+                    .width(Length::Fill)
+                    .center_y()
+                ]
+                .max_width(sizings::MAX_MAIN_CONTENT_CHILDREN_WIDTH)
+                .spacing(padding::PORTION);
+
+                let main = container(
+                    column![cpu_details_ui, thermals, about]
+                        .spacing(20)
+                        .align_items(alignment::Alignment::Center),
+                )
+                .center_x()
+                .width(Length::Fill)
+                .padding(padding::MAIN);
+
+                let content = column![header, scrollable(main)];
 
                 let container = container(content);
                 container.into()
