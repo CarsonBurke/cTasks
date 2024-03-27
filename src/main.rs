@@ -1,4 +1,4 @@
-use std::{env, time::Duration};
+use std::{collections::VecDeque, env, time::Duration};
 
 use constants::{padding, DisplayState, PERCENT_PRECISION};
 use iced::{
@@ -73,6 +73,22 @@ pub struct ResourceHistoryTick {
     pub disk_read: f32,
 }
 
+#[derive(Debug, Default)]
+pub struct ResourceHistory {
+    // use the difference between the current tick and the last tick 
+    pub last_tick: u128,
+    pub cpu: VecDeque<(u128, u32)>,
+    pub cpu_cores: VecDeque<(u128, u32)>,
+    pub ram: VecDeque<(u128, u32)>,
+    pub swap: VecDeque<(u128, u32)>,
+    pub disk_write: VecDeque<(u128, u32)>,
+    pub disk_read: VecDeque<(u128, u32)>,
+    pub gpu: VecDeque<(u128, u32)>,
+    pub vram: VecDeque<(u128, u32)>,
+    pub wifi: VecDeque<(u128, u32)>,
+    pub ethernet: VecDeque<(u128, u32)>,
+}
+
 #[derive(Debug, Clone)]
 enum Message {
     FontLoaded(Result<(), font::Error>),
@@ -109,6 +125,7 @@ struct App {
     state: AppState,
     tick: u128,
     history: Vec<ResourceHistoryTick>,
+    resource_history: ResourceHistory,
 }
 
 async fn load() -> Result<(), String> {

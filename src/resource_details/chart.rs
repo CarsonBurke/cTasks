@@ -3,9 +3,11 @@ use std::collections::{HashMap, VecDeque};
 use iced::{Element, Length};
 use plotters::{
     series::AreaSeries,
-    style::{Color, FontTransform, HSLColor, IntoFont, ShapeStyle},
+    style::{Color, FontTransform, HSLColor, IntoFont, RGBAColor, RGBColor, ShapeStyle},
 };
 use plotters_iced::{Chart, ChartBuilder, ChartWidget, DrawingBackend};
+
+use crate::constants::custom_theme;
 
 use super::resource_details::ResourceDetailsMessage;
 
@@ -57,13 +59,18 @@ impl Chart<ResourceDetailsMessage> for ResourceChart {
                     self.data_points.iter().map(|x| (x.0, x.1)),
                     // self.data.iter(),
                     0,
-                    HSLColor {
-                        0: 240. / 360.,
-                        1: 0.7,
-                        2: 0.651,
+                    RGBAColor {
+                        0: (custom_theme::PRIMARY.r * 255.) as u8,
+                        1: (custom_theme::PRIMARY.g * 255.) as u8,
+                        2: (custom_theme::PRIMARY.b * 255.) as u8,
+                        3: 0.2,
                     },
                 )
-                .border_style(ShapeStyle::from(plotters::style::colors::BLUE).stroke_width(2)),
+                .border_style(ShapeStyle::from(RGBColor {
+                    0: (custom_theme::PRIMARY.r * 255.) as u8,
+                    1: (custom_theme::PRIMARY.g * 255.) as u8,
+                    2: (custom_theme::PRIMARY.b * 255.) as u8,
+                }).stroke_width(1)),
             )
             .expect("failed to draw chart data");
     }
