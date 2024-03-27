@@ -4,7 +4,7 @@ pub mod padding {
 }
 
 pub mod font_sizes {
-    pub const H2: u16 = 20;
+    pub const H2: u16 = 19;
     pub const P: u16 = 15;
 }
 
@@ -58,6 +58,13 @@ pub mod custom_theme {
         r: 1.,
         g: 1.,
         b: 1.,
+        a: 1.,
+    };
+
+    pub const GREY_TEXT: Color = Color {
+        r: 0.7,
+        g: 0.7,
+        b: 0.7,
         a: 1.,
     };
 }

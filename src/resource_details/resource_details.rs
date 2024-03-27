@@ -1,11 +1,16 @@
 use std::borrow::BorrowMut;
 
 use iced::{
-    advanced::graphics::futures::backend::default, alignment, theme, widget::{
+    advanced::graphics::futures::backend::default,
+    alignment,
+    theme::{self, Text},
+    widget::{
         self, button, column, container, horizontal_space, keyed_column, row, scrollable,
         shader::wgpu::{hal::empty::Resource, naga::proc},
-        text,
-    }, window::Action, Alignment, Command, Element, Length, Theme
+        text, text_input,
+    },
+    window::Action,
+    Alignment, Command, Element, Length, Theme,
 };
 use iced_aw::{grid, grid_row, BootstrapIcon, Grid, GridRow};
 use ordered_float::OrderedFloat;
@@ -13,10 +18,13 @@ use plotters_iced::{Chart, ChartWidget};
 use sysinfo::{MemoryRefreshKind, Pid, Process, ProcessRefreshKind, RefreshKind, System};
 
 use crate::{
-    constants::{font_sizes, padding, sizings},
-    styles::container::{
-        alternate_process_grid_row, divider_background_1, primary_process_grid_row,
-        resource_details_child, resource_details_header,
+    constants::{custom_theme, font_sizes, padding, sizings},
+    styles::{
+        self,
+        container::{
+            alternate_process_grid_row, divider_background_1, primary_process_grid_row,
+            resource_details_child, resource_details_header,
+        },
     },
     ResourceType,
 };
@@ -90,6 +98,7 @@ pub enum ResourceDetailsMessage {
     KillProcessId(Pid),
     SortByIndex(u32),
     SwitchSortDirection,
+    ChangeSwapiness,
 }
 
 // pub type ResourceDetailsElements = MemoryDetails & ApplicationsDetails;
@@ -266,6 +275,9 @@ impl ResourceDetails {
                         SortDirection::Descending => SortDirection::Ascending,
                         SortDirection::Ascending => SortDirection::Descending,
                     };
+                }
+                ResourceDetailsMessage::ChangeSwapiness => {
+                    println!("change swapiness")
                 }
             }
         })();
@@ -492,23 +504,76 @@ impl ResourceDetails {
                 .spacing(padding::PORTION)
                 .max_width(sizings::MAX_MAIN_CONTENT_CHILDREN_WIDTH);
 
+                let thermals = column![
+                    row![
+                        text(iced_aw::graphics::icons::BootstrapIcon::Thermometer.to_string())
+                            .font(iced_aw::BOOTSTRAP_FONT)
+                            .size(font_sizes::H2),
+                        text(String::from("Thermals")).size(font_sizes::H2)
+                    ]
+                    .spacing(padding::MAIN),
+                    container(column![column![
+                        text(String::from("Temperature"))
+                            .style(Text::Color(custom_theme::GREY_TEXT)),
+                        text(String::from("25℃")),
+                    ]
+                    .padding(padding::MAIN)
+                    .spacing(padding::PORTION),])
+                    .style(resource_details_child())
+                    .width(Length::Fill)
+                    .center_y()
+                ]
+                .max_width(sizings::MAX_MAIN_CONTENT_CHILDREN_WIDTH)
+                .spacing(padding::PORTION);
+
                 let about = column![
                     row![
                         text(iced_aw::graphics::icons::BootstrapIcon::InfoCircle.to_string())
                             .font(iced_aw::BOOTSTRAP_FONT)
                             .size(font_sizes::H2),
-                        text(String::from("About")).size(font_sizes::H2) // i in the top right that takes someone to a description of what Swap is
+                        text(String::from("About")).size(font_sizes::H2)
                     ]
                     .spacing(padding::MAIN),
                     container(column![
-                        row![
-                            text(String::from("text")),
-                            horizontal_space(),
-                            text(String::from("text"))
-                        ].padding(padding::MAIN),
-                        container(row![]).style(divider_background_1()).width(Length::Fill).height(1),
-                        row![text(String::from("text"))],
-                        row![text(String::from("text"))]
+                        column![
+                            text(String::from("Speed")).style(Text::Color(custom_theme::GREY_TEXT)),
+                            text(String::from("25℃")),
+                        ]
+                        .padding(padding::MAIN)
+                        .spacing(padding::PORTION),
+                        container(row![])
+                            .style(divider_background_1())
+                            .width(Length::Fill)
+                            .height(1),
+                        column![
+                            text(String::from("Slots used"))
+                                .style(Text::Color(custom_theme::GREY_TEXT)),
+                            text(String::from("25℃")),
+                        ]
+                        .padding(padding::MAIN)
+                        .spacing(padding::PORTION),
+                        container(row![])
+                            .style(divider_background_1())
+                            .width(Length::Fill)
+                            .height(1),
+                        column![
+                            text(String::from("RAM Type"))
+                                .style(Text::Color(custom_theme::GREY_TEXT)),
+                            text(String::from("25℃")),
+                        ]
+                        .padding(padding::MAIN)
+                        .spacing(padding::PORTION),
+                        container(row![])
+                            .style(divider_background_1())
+                            .width(Length::Fill)
+                            .height(1),
+                        column![
+                            text(String::from("Swapiness"))
+                                .style(Text::Color(custom_theme::GREY_TEXT)),
+                            text(String::from("N/A")),
+                        ]
+                        .padding(padding::MAIN)
+                        .spacing(padding::PORTION),
                     ])
                     .style(resource_details_child())
                     .width(Length::Fill)
@@ -517,6 +582,8 @@ impl ResourceDetails {
                 .max_width(sizings::MAX_MAIN_CONTENT_CHILDREN_WIDTH)
                 .spacing(padding::PORTION);
 
+                // modify swapiness
+                // other?
                 let advanced = column![
                     row![
                         text(iced_aw::graphics::icons::BootstrapIcon::Tools.to_string())
@@ -527,13 +594,20 @@ impl ResourceDetails {
                     .spacing(padding::MAIN),
                     container(column![
                         row![
-                            text(String::from("text")),
+                            text(String::from("Swapiness")),
                             horizontal_space(),
-                            text(String::from("text"))
-                        ].padding(padding::MAIN),
-                        container(row![]).style(divider_background_1()).width(Length::Fill).height(1),
+                            row![
+                                text_input("current swapiness", "val"),
+                                button("change").on_press(ResourceDetailsMessage::ChangeSwapiness)
+                            ]
+                            .spacing(padding::PORTION),
+                        ]
+                        .padding(padding::MAIN),
+                        container(row![])
+                            .style(divider_background_1())
+                            .width(Length::Fill)
+                            .height(1),
                         row![text(String::from("text"))],
-                        row![text(String::from("text"))]
                     ])
                     .style(resource_details_child())
                     .width(Length::Fill)
@@ -543,13 +617,9 @@ impl ResourceDetails {
                 .spacing(padding::PORTION);
 
                 let main = container(
-                    column![
-                        ram_details,
-                        swap_details,
-                        advanced,
-                        about
-                    ]
-                    .spacing(20).align_items(alignment::Alignment::Center),
+                    column![ram_details, swap_details, thermals, about, advanced]
+                        .spacing(20)
+                        .align_items(alignment::Alignment::Center),
                 )
                 .center_x()
                 .width(Length::Fill)
@@ -558,7 +628,7 @@ impl ResourceDetails {
                 let content = column![header, scrollable(main)]
                     .spacing(20)
                     .align_items(Alignment::Center);
-                
+
                 let container = container(content);
                 container.into()
             }

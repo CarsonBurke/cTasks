@@ -117,8 +117,8 @@ impl ResourceChart {
     pub fn view(&self) -> Element<ResourceDetailsMessage> {
         // 3:2 ratio
         ChartWidget::new(self)
-            .width(Length::Fixed(600.))
-            .height(Length::Fixed(400.))
+            // .width(Length::Fixed(600.))
+            .height(Length::Fixed(300.))
             .into()
     }
 }
