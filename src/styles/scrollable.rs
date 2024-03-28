@@ -23,9 +23,4 @@ pub fn background_1() -> widget::scrollable::Appearance {
         },
         gap: Some(Background::from(BACKGROUND_1)),
     }
-    // widget::scrollbar::Appearance {
-    //     background: Background::from(BACKGROUND_5),
-    //     bar: Background::from(custom_theme::PRIMARY),
-    //     border_radius: [12., 12., 12., 12.].into(),
-    // }
 }
