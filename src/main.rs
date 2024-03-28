@@ -1,10 +1,9 @@
 use std::{collections::VecDeque, env, time::Duration};
 
-use constants::{padding, DisplayState, PERCENT_PRECISION};
+use constants::{padding, DisplayState, ICON, PERCENT_PRECISION};
 use iced::{
     advanced::{
-        graphics::{futures::backend::default, text::cosmic_text::SwashImage},
-        widget::Text,
+        graphics::{futures::backend::default, image::image_rs::ImageFormat, text::cosmic_text::SwashImage}, widget::Text
     },
     alignment, color, executor, font,
     theme::{
@@ -13,10 +12,7 @@ use iced::{
         Palette,
     },
     widget::{
-        button, column, container, horizontal_space, keyed_column, progress_bar, row,
-        scrollable::{self, Direction, Properties, RelativeOffset},
-        shader::wgpu::{hal::empty::Resource, naga::proc},
-        text, text_input, Column, Container, Row, Scrollable, Space,
+        button, column, container, horizontal_space, keyed_column, progress_bar, row, scrollable::{self, Direction, Properties, RelativeOffset}, shader::wgpu::{hal::empty::Resource, naga::proc}, text, text_input, Column, Container, Image, Row, Scrollable, Space
     },
     window::{icon, Icon},
     Alignment, Application, Color, Command, Element, Font, Length, Pixels, Renderer, Sandbox,
@@ -43,8 +39,24 @@ mod resource_previews;
 mod styles;
 
 pub fn main() -> iced::Result {
+
+    // let image = Image::load_from_memory(ICON).unwrap();
+    // let icon = iced::window::icon::from_rgba(ICON.as_bytes().to_vec(), ICON_HEIGHT, ICON_WIDTH).unwrap();
+    //let icon = iced::window::icon::from_rgba(rgba, width, height)
+
+    let icon = iced::window::icon::from_file_data(ICON, Some(ImageFormat::Png)).unwrap();
+
+    let settings = Settings {
+        window: iced::window::Settings {
+            icon: Some(icon),
+            transparent: true,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+
     // env::set_var("RUST_BACKTRACE", "1");
-    App::run(Settings::default())
+    App::run(settings)
 }
 
 pub enum CustomThemeChoice {

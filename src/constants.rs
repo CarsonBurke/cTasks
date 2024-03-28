@@ -20,6 +20,8 @@ pub enum DisplayState {
     Hidden,
 }
 
+pub static ICON: &[u8] = include_bytes!("icon.png");
+
 /// How many decimals to show for percentage values.
 /// TODO: Make this user configurable
 pub const PERCENT_PRECISION: u8 = 1;
