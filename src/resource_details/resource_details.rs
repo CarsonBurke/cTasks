@@ -5,7 +5,8 @@ use iced::{
     alignment,
     theme::{self, Text},
     widget::{
-        self, button, checkbox, column, container, horizontal_space, keyed_column, row, scrollable,
+        self, button, checkbox, column, container, horizontal_space, keyed_column, responsive, row,
+        scrollable,
         shader::wgpu::{hal::empty::Resource, naga::proc},
         text, text_input, vertical_space, Themer,
     },
@@ -13,24 +14,28 @@ use iced::{
     Alignment, Command, Element, Length, Theme,
 };
 use iced_aw::{grid, grid_row, BootstrapIcon, Grid, GridRow};
+use iced_table::table;
 use ordered_float::OrderedFloat;
 use plotters_iced::{Chart, ChartWidget};
 use sysinfo::{MemoryRefreshKind, Pid, Process, ProcessRefreshKind, RefreshKind, System};
 
 use crate::{
-    constants::{custom_theme, font_sizes, padding, sizings, HISTORY_TICKS}, styles::{
+    constants::{custom_theme, font_sizes, padding, sizings, HISTORY_TICKS},
+    styles::{
         self,
         container::{
             alternate_process_grid_row, divider_background_1, primary_process_grid_row,
             resource_details_child, resource_details_header,
         },
-    }, ResourceHistory, ResourceHistoryTick, ResourceType
+    },
+    ResourceHistory, ResourceHistoryTick, ResourceType,
 };
 
 use super::{
     applications_details::{ApplicationsDetails, ApplicationsDetailsMessage},
     chart::ResourceChart,
     memory_detail::{self, MemoryDetails, MemoryDetailsMessage},
+    processes_table::{self, TableColumn, TableColumnKind, TableRow},
 };
 
 #[derive(Debug)]
@@ -51,10 +56,19 @@ pub enum SortDirection {
 }
 
 #[derive(Debug)]
+struct ProcessesTable {
+    pub columns: Vec<TableColumn>,
+    pub rows: Vec<TableRow>,
+    pub header: scrollable::Id,
+    pub body: scrollable::Id,
+}
+
+#[derive(Debug)]
 pub struct ProcessesDetails {
     pub processes: Vec<ProcessDetails>,
     pub sort_index: u32,
     pub sort_direction: SortDirection,
+    pub table: ProcessesTable,
 }
 
 struct ProcessesDetailsProcs;
@@ -107,6 +121,10 @@ pub enum ResourceDetailsMessage {
     SortByIndex(u32),
     SwitchSortDirection,
     ChangeSwapiness,
+    // table stuff
+    SyncHeader(scrollable::AbsoluteOffset),
+    Resizing(usize, f32),
+    Resized,
 }
 
 // pub type ResourceDetailsElements = MemoryDetails & ApplicationsDetails;
@@ -139,6 +157,19 @@ impl ResourceDetails {
                     processes: Vec::new(),
                     sort_index: 0,
                     sort_direction: SortDirection::default(),
+                    table: ProcessesTable {
+                        columns: vec![
+                            TableColumn::new(TableColumnKind::Name),
+                            TableColumn::new(TableColumnKind::Cpu),
+                            TableColumn::new(TableColumnKind::Memory),
+                            TableColumn::new(TableColumnKind::DiskRead),
+                            TableColumn::new(TableColumnKind::DiskWritten),
+                            TableColumn::new(TableColumnKind::Action),
+                        ],
+                        rows: (0..50).map(TableRow::generate).collect(),
+                        header: scrollable::Id::unique(),
+                        body: scrollable::Id::unique(),
+                    },
                 })
             }
             ResourceType::Memory => {
@@ -280,58 +311,100 @@ impl ResourceDetails {
     pub fn update(&mut self, message: ResourceDetailsMessage) -> Command<ResourceDetailsMessage> {
         println!("updated");
 
-        (|| {
-            match message {
-                ResourceDetailsMessage::KillProcessId(pid) => {
-                    let Some(processes_details) = &mut self.processes_details else {
-                        return;
-                    };
+        match message {
+            ResourceDetailsMessage::KillProcessId(pid) => {
+                let Some(processes_details) = &mut self.processes_details else {
+                    return Command::none();
+                };
 
-                    let system_info = System::new_with_specifics(
-                        RefreshKind::new().with_processes(ProcessRefreshKind::everything()),
-                    );
+                let system_info = System::new_with_specifics(
+                    RefreshKind::new().with_processes(ProcessRefreshKind::everything()),
+                );
 
-                    let Some(process) = system_info.process(pid) else {
-                        return;
-                    };
+                let Some(process) = system_info.process(pid) else {
+                    return Command::none();
+                };
 
-                    // The process still exists. Kill it
+                // The process still exists. Kill it
 
-                    process.kill();
-                    println!("Killed {}", process.name());
-                }
-                ResourceDetailsMessage::SortByIndex(sort_index) => {
-                    let Some(processes_details) = &mut self.processes_details else {
-                        return;
-                    };
+                process.kill();
+                println!("Killed {}", process.name());
 
-                    processes_details.sort_index = sort_index;
-                    // Also reset the sort direction since the user is sorting a different category
-                    processes_details.sort_direction = SortDirection::default();
-
-                    ProcessesDetailsProcs::sort_by_index(
-                        &mut processes_details.processes,
-                        processes_details.sort_index,
-                        &processes_details.sort_direction,
-                    );
-                }
-                ResourceDetailsMessage::SwitchSortDirection => {
-                    let Some(processes_details) = &mut self.processes_details else {
-                        return;
-                    };
-
-                    processes_details.sort_direction = match processes_details.sort_direction {
-                        SortDirection::Descending => SortDirection::Ascending,
-                        SortDirection::Ascending => SortDirection::Descending,
-                    };
-                }
-                ResourceDetailsMessage::ChangeSwapiness => {
-                    println!("change swapiness")
-                }
+                Command::none()
             }
-        })();
+            ResourceDetailsMessage::SortByIndex(sort_index) => {
+                let Some(processes_details) = &mut self.processes_details else {
+                    return Command::none();
+                };
 
-        Command::none()
+                processes_details.sort_index = sort_index;
+                // Also reset the sort direction since the user is sorting a different category
+                processes_details.sort_direction = SortDirection::default();
+
+                ProcessesDetailsProcs::sort_by_index(
+                    &mut processes_details.processes,
+                    processes_details.sort_index,
+                    &processes_details.sort_direction,
+                );
+
+                Command::none()
+            }
+            ResourceDetailsMessage::SwitchSortDirection => {
+                let Some(processes_details) = &mut self.processes_details else {
+                    return Command::none();
+                };
+
+                processes_details.sort_direction = match processes_details.sort_direction {
+                    SortDirection::Descending => SortDirection::Ascending,
+                    SortDirection::Ascending => SortDirection::Descending,
+                };
+
+                Command::none()
+            }
+            ResourceDetailsMessage::ChangeSwapiness => {
+                println!("change swapiness");
+
+                Command::none()
+            }
+            ResourceDetailsMessage::SyncHeader(offset) => {
+                let Some(processes_details) = &mut self.processes_details else {
+                    return Command::none();
+                };
+
+                return Command::batch(vec![scrollable::scroll_to(
+                    processes_details.table.header.clone(),
+                    offset,
+                )]);
+            }
+            ResourceDetailsMessage::Resizing(index, offset) => {
+                let Some(processes_details) = &mut self.processes_details else {
+                    return Command::none();
+                };
+
+                if let Some(column) = processes_details.table.columns.get_mut(index) {
+                    column.resize_offset = Some(offset);
+                };
+
+                Command::none()
+            }
+            ResourceDetailsMessage::Resized => {
+                let Some(processes_details) = &mut self.processes_details else {
+                    return Command::none();
+                };
+
+                processes_details
+                    .table
+                    .columns
+                    .iter_mut()
+                    .for_each(|column| {
+                        if let Some(offset) = column.resize_offset.take() {
+                            column.width += offset;
+                        }
+                    });
+
+                Command::none()
+            }
+        }
     }
 
     pub fn view(&self) -> Element<ResourceDetailsMessage> {
@@ -353,120 +426,134 @@ impl ResourceDetails {
                     .width(Length::Fill)
                     .padding(padding::MAIN);
 
-                let processes_header_strings =
-                    vec!["Name", "CPU", "Memory", "Disk Read", "Disk Written", "Kill"];
+                let table = responsive(|size| {
+                    let table = table::table(
+                        processes_details.table.header.clone(),
+                        processes_details.table.body.clone(),
+                        &processes_details.table.columns,
+                        &processes_details.table.rows,
+                        ResourceDetailsMessage::SyncHeader,
+                    );
 
-                let processes_headers = GridRow::with_elements({
-                    let mut elements = Vec::new();
-
-                    let mut i: u32 = 0;
-                    for string in processes_header_strings {
-                        if i == processes_details.sort_index {
-                            elements.push(
-                                button(
-                                    row![
-                                        text(string),
-                                        // Icon
-                                        text(String::from({
-                                            match processes_details.sort_direction {
-                                                SortDirection::Descending => {
-                                                    BootstrapIcon::CaretDownFill
-                                                }
-                                                SortDirection::Ascending => {
-                                                    BootstrapIcon::CaretUpFill
-                                                }
-                                            }
-                                        }))
-                                        .font(iced_aw::BOOTSTRAP_FONT)
-                                    ]
-                                    .spacing(10),
-                                )
-                                .width(Length::Fill)
-                                .on_press(ResourceDetailsMessage::SwitchSortDirection)
-                                .style(theme::Button::Text),
-                            )
-                        } else {
-                            elements.push(
-                                button(string)
-                                    .width(Length::Fill)
-                                    .on_press(ResourceDetailsMessage::SortByIndex(i))
-                                    .style(theme::Button::Text),
-                            );
-                        }
-
-                        i += 1;
-                    }
-
-                    elements
+                    table.into()
                 });
+                /*
+                               let processes_header_strings =
+                                   vec!["Name", "CPU", "Memory", "Disk Read", "Disk Written", "Kill"];
 
-                let processes_totals = grid_row!(
-                    row![
-                        text(iced_aw::graphics::icons::BootstrapIcon::BarChart.to_string())
-                            .font(iced_aw::BOOTSTRAP_FONT),
-                        text("Total")
-                    ]
-                    .spacing(5),
-                    text("CPU"),
-                    text("Memory"),
-                    text("Read"),
-                    text("Written"),
-                    text("Action"),
-                );
+                               let processes_headers = GridRow::with_elements({
+                                   let mut elements = Vec::new();
 
-                let main = container(
-                    Grid::with_rows({
-                        let mut rows = Vec::new();
-                        rows.push(processes_headers);
-                        rows.push(processes_totals);
+                                   let mut i: u32 = 0;
+                                   for string in processes_header_strings {
+                                       if i == processes_details.sort_index {
+                                           elements.push(
+                                               button(
+                                                   row![
+                                                       text(string),
+                                                       // Icon
+                                                       text(String::from({
+                                                           match processes_details.sort_direction {
+                                                               SortDirection::Descending => {
+                                                                   BootstrapIcon::CaretDownFill
+                                                               }
+                                                               SortDirection::Ascending => {
+                                                                   BootstrapIcon::CaretUpFill
+                                                               }
+                                                           }
+                                                       }))
+                                                       .font(iced_aw::BOOTSTRAP_FONT)
+                                                   ]
+                                                   .spacing(10),
+                                               )
+                                               .width(Length::Fill)
+                                               .on_press(ResourceDetailsMessage::SwitchSortDirection)
+                                               .style(theme::Button::Text),
+                                           )
+                                       } else {
+                                           elements.push(
+                                               button(string)
+                                                   .width(Length::Fill)
+                                                   .on_press(ResourceDetailsMessage::SortByIndex(i))
+                                                   .style(theme::Button::Text),
+                                           );
+                                       }
 
-                        let mut i: u32 = 0;
+                                       i += 1;
+                                   }
 
-                        for process_details in &processes_details.processes {
-                            let is_odd = i % 2 == 1;
-                            // let styler = if is_odd {
-                            //     alternate_process_grid_row()
-                            // } else {
-                            //     primary_process_grid_row()
-                            // };
+                                   elements
+                               });
 
-                            rows.push(grid_row!(
-                                text(format!["{}", process_details.name]),
-                                text(format!["{:.2}%", process_details.cpu_usage]),
-                                text(format![
-                                    "{:.2} MB",
-                                    process_details.memory_usage as f64 / 1024. / 1024.
-                                ]),
-                                text(format![
-                                    "{:.2} MB",
-                                    process_details.disk_read as f64 / 1024. / 1024.
-                                ]),
-                                text(format![
-                                    "{:.2} MB",
-                                    process_details.disk_written as f64 / 1024. / 1024.
-                                ]),
-                                button(text("Kill")).on_press(
-                                    ResourceDetailsMessage::KillProcessId(process_details.id)
-                                ),
-                            ));
+                               let processes_totals = grid_row!(
+                                   row![
+                                       text(iced_aw::graphics::icons::BootstrapIcon::BarChart.to_string())
+                                           .font(iced_aw::BOOTSTRAP_FONT),
+                                       text("Total")
+                                   ]
+                                   .spacing(5),
+                                   text("CPU"),
+                                   text("Memory"),
+                                   text("Read"),
+                                   text("Written"),
+                                   text("Action"),
+                               );
 
-                            i += 1;
-                        }
+                               let main = container(
+                                   Grid::with_rows({
+                                       let mut rows = Vec::new();
+                                       rows.push(processes_headers);
+                                       rows.push(processes_totals);
 
-                        rows
-                    })
-                    .column_width(Length::Shrink)
-                    .row_spacing(10)
-                    .column_spacing(0),
-                )
-                .padding(padding::MAIN)
-                .width(Length::Fill)
-                .align_x(alignment::Horizontal::Center);
+                                       let mut i: u32 = 0;
 
-                let content = column![
-                    header,
-                    scrollable(main)
-                ];
+                                       for process_details in &processes_details.processes {
+                                           let is_odd = i % 2 == 1;
+                                           // let styler = if is_odd {
+                                           //     alternate_process_grid_row()
+                                           // } else {
+                                           //     primary_process_grid_row()
+                                           // };
+
+                                           rows.push(grid_row!(
+                                               text(format!["{}", process_details.name]),
+                                               text(format!["{:.2}%", process_details.cpu_usage]),
+                                               text(format![
+                                                   "{:.2} MB",
+                                                   process_details.memory_usage as f64 / 1024. / 1024.
+                                               ]),
+                                               text(format![
+                                                   "{:.2} MB",
+                                                   process_details.disk_read as f64 / 1024. / 1024.
+                                               ]),
+                                               text(format![
+                                                   "{:.2} MB",
+                                                   process_details.disk_written as f64 / 1024. / 1024.
+                                               ]),
+                                               button(text("Kill")).on_press(
+                                                   ResourceDetailsMessage::KillProcessId(process_details.id)
+                                               ),
+                                           ));
+
+                                           i += 1;
+                                       }
+
+                                       rows
+                                   })
+                                   .column_width(Length::Shrink)
+                                   .row_spacing(10)
+                                   .column_spacing(0),
+                               )
+                               .padding(padding::MAIN)
+                               .width(Length::Fill)
+                               .align_x(alignment::Horizontal::Center);
+                */
+                let main = container(table)
+                    .padding(padding::MAIN)
+                    .width(Length::Fill)
+                    .align_x(alignment::Horizontal::Center);
+
+                let content = column![header, scrollable(main)];
 
                 let container = container(content);
                 container.into()
@@ -874,10 +961,7 @@ impl ResourceDetails {
                 .width(Length::Fill)
                 .padding(padding::SECTION);
 
-                let content = column![
-                    header,
-                    scrollable(main)
-                ];
+                let content = column![header, scrollable(main)];
 
                 let container = container(content);
                 container.into()

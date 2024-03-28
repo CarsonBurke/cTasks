@@ -3,6 +3,7 @@ name = "c-tasks"
 version = "0.1.0"
 edition = "2021"
 license = "GPL-3"
+description = "a fast, powerful and pretty task manager"
 resolver = "2"
 
 [dependencies]
@@ -15,3 +16,6 @@ plotters-iced = "0.10"
 plotters = "0.3"
 ordered-float = "4.2.0"
 rust-ini = "0.21.0"
+iced_table = "0.12"
+
+[package.metadata.bundle]

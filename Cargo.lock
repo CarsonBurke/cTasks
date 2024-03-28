@@ -265,6 +265,7 @@ version = "0.1.0"
 dependencies = [
  "iced",
  "iced_aw",
+ "iced_table",
  "ordered-float",
  "plotters",
  "plotters-iced",
@@ -1436,6 +1437,17 @@ dependencies = [
  "iced_core",
  "once_cell",
  "palette",
+]
+
+[[package]]
+name = "iced_table"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4347f00d6cd7e5e3b26a9ac0bedd46f336b5eaa4be9b46256d1c8009562f6b51"
+dependencies = [
+ "iced_core",
+ "iced_style",
+ "iced_widget",
 ]
 
 [[package]]
