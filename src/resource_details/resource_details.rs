@@ -19,7 +19,10 @@ use sysinfo::{MemoryRefreshKind, Pid, Process, ProcessRefreshKind, RefreshKind, 
 
 use crate::{
     constants::{custom_theme, font_sizes, padding, sizings, HISTORY_TICKS},
-    general_widgets::{section_box::section_box, split_table_double::split_table_double},
+    general_widgets::{
+        section_box::section_box, split_table_double::split_table_double,
+        split_table_single::split_table_single,
+    },
     styles::{
         self,
         container::{
@@ -582,144 +585,14 @@ impl ResourceDetails {
                         }
                     }],
                 );
-                // column![
-                //     row![
-                //         text(iced_aw::graphics::icons::BootstrapIcon::HddRack.to_string())
-                //             .font(iced_aw::BOOTSTRAP_FONT)
-                //             .size(font_sizes::H2),
-                //         text(String::from("Swap")).size(font_sizes::H2) // i in the top right that takes someone to a description of what Swap is
-                //     ]
-                //     .spacing(padding::MAIN),
-                //     container({
-                //         if memory_details.swap_usage == 0 || memory_details.swap_total == 0 {
-                //             column!["No Swap data to display"]
-                //         } else {
-                //             column![
-                //                 split_table_double(vec![(
-                //                     (
-                //                         "Usage".to_string(),
-                //                         format!(
-                //                             "{:.2} / {:.2} GB",
-                //                             memory_details.swap_usage as f64
-                //                                 / 1024.
-                //                                 / 1024.
-                //                                 / 1024.,
-                //                             memory_details.swap_total as f64
-                //                                 / 1024.
-                //                                 / 1024.
-                //                                 / 1024.
-                //                         )
-                //                     ),
-                //                     (
-                //                         "Percent used".to_string(),
-                //                         format!(
-                //                             "{:.1}%",
-                //                             memory_details.swap_usage as f64
-                //                                 / memory_details.swap_total as f64
-                //                                 * 100.
-                //                         )
-                //                     )
-                //                 )]),
-                //                 container(row![])
-                //                     .style(divider_background_1())
-                //                     .width(Length::Fill)
-                //                     .height(1),
-                //                 container(memory_details.swap_chart.view())
-                //             ]
-                //         }
-                //     })
-                //     .style(resource_details_child())
-                //     .width(Length::Fill)
-                //     .center_y()
-                // ]
-                // .spacing(padding::PORTION)
-                // .max_width(sizings::MAX_MAIN_CONTENT_CHILDREN_WIDTH);
 
-                // let swap_details = column![
-                //     row![
-                //         text(iced_aw::graphics::icons::BootstrapIcon::HddRack.to_string())
-                //             .font(iced_aw::BOOTSTRAP_FONT)
-                //             .size(font_sizes::H2),
-                //         text(String::from("Swap")).size(font_sizes::H2) // i in the top right that takes someone to a description of what Swap is
-                //     ]
-                //     .spacing(padding::MAIN),
-                //     container({
-                //         if memory_details.swap_usage == 0 || memory_details.swap_total == 0 {
-                //             column!["No Swap data to display"]
-                //         } else {
-                //             column![
-                //                 row![
-                //                     column![
-                //                         text(String::from("Usage"))
-                //                             .style(Text::Color(custom_theme::GREY_TEXT)),
-                //                         text(format!(
-                //                             "{:.2} / {:.2} GB",
-                //                             memory_details.swap_usage as f64
-                //                                 / 1024.
-                //                                 / 1024.
-                //                                 / 1024.,
-                //                             memory_details.swap_total as f64
-                //                                 / 1024.
-                //                                 / 1024.
-                //                                 / 1024.
-                //                         )),
-                //                     ],
-                //                     horizontal_space(),
-                //                     column![
-                //                         row![
-                //                             horizontal_space(),
-                //                             text(String::from("Percent used"))
-                //                                 .style(Text::Color(custom_theme::GREY_TEXT))
-                //                         ],
-                //                         row![
-                //                             horizontal_space(),
-                //                             text(format!(
-                //                                 "{:.1}%",
-                //                                 memory_details.swap_usage as f64
-                //                                     / memory_details.swap_total as f64
-                //                                     * 100.
-                //                             )),
-                //                         ],
-                //                     ]
-                //                 ]
-                //                 .padding(padding::MAIN),
-                //                 container(row![])
-                //                     .style(divider_background_1())
-                //                     .width(Length::Fill)
-                //                     .height(1),
-                //                 container(memory_details.swap_chart.view()) //.padding(padding::MAIN),
-                //             ]
-                //             .spacing(5)
-                //         }
-                //     })
-                //     .style(resource_details_child())
-                //     .width(Length::Fill)
-                //     .center_y()
-                // ]
-                // .spacing(padding::PORTION)
-                // .max_width(sizings::MAX_MAIN_CONTENT_CHILDREN_WIDTH);
-
-                let thermals = column![
-                    row![
-                        text(iced_aw::graphics::icons::BootstrapIcon::Thermometer.to_string())
-                            .font(iced_aw::BOOTSTRAP_FONT)
-                            .size(font_sizes::H2),
-                        text(String::from("Thermals")).size(font_sizes::H2)
-                    ]
-                    .spacing(padding::MAIN),
-                    container(column![column![
-                        text(String::from("Temperature"))
-                            .style(Text::Color(custom_theme::GREY_TEXT)),
-                        text(String::from("25℃")),
-                    ]
-                    .padding(padding::MAIN)
-                    .spacing(padding::PORTION),])
-                    .style(resource_details_child())
-                    .width(Length::Fill)
-                    .center_y()
-                ]
-                .max_width(sizings::MAX_MAIN_CONTENT_CHILDREN_WIDTH)
-                .spacing(padding::PORTION);
+                let thermals = section_box(
+                    (BootstrapIcon::Thermometer, String::from("Thermals")),
+                    column![split_table_single(vec![(
+                        String::from("Temperature"),
+                        String::from("25℃") /* format!("{:.2}°C") */
+                    ),])],
+                );
 
                 let about = column![
                     row![
