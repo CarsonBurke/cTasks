@@ -1,4 +1,5 @@
 pub mod padding {
+    pub const SECTION: u16 = 22;
     pub const MAIN: u16 = 10;
     pub const PORTION: u16 = 6;
 }
@@ -51,9 +52,23 @@ pub mod custom_theme {
     };
 
     pub const BACKGROUND_3: Color = Color {
-        r: 0.25,
-        g: 0.25,
-        b: 0.25,
+        r: 0.20,
+        g: 0.20,
+        b: 0.20,
+        a: 1.,
+    };
+
+    pub const BACKGROUND_4: Color = Color {
+        r: 0.24,
+        g: 0.24,
+        b: 0.24,
+        a: 1.,
+    };
+
+    pub const BACKGROUND_5: Color = Color {
+        r: 0.28,
+        g: 0.28,
+        b: 0.28,
         a: 1.,
     };
 

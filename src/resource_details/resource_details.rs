@@ -7,7 +7,7 @@ use iced::{
     widget::{
         self, button, checkbox, column, container, horizontal_space, keyed_column, row, scrollable,
         shader::wgpu::{hal::empty::Resource, naga::proc},
-        text, text_input,
+        text, text_input, vertical_space, Themer,
     },
     window::Action,
     Alignment, Command, Element, Length, Theme,
@@ -263,10 +263,10 @@ impl ResourceDetails {
                     .retain(|history_tick| history_tick.0 >= 0);
 
                 for history_tick in resource_history {
-                    memory_details.ram_chart.data_points.push_back((
-                        HISTORY_TICKS as i32,
-                        history_tick.ram_usage_percent as i32,
-                    ))
+                    memory_details
+                        .ram_chart
+                        .data_points
+                        .push_back((HISTORY_TICKS as i32, history_tick.ram_usage_percent as i32))
                 }
 
                 // Swap usage history
@@ -281,10 +281,10 @@ impl ResourceDetails {
                     .retain(|history_tick| history_tick.0 >= 0);
 
                 for history_tick in resource_history {
-                    memory_details.swap_chart.data_points.push_back((
-                        HISTORY_TICKS as i32,
-                        history_tick.swap_usage_percent as i32,
-                    ))
+                    memory_details
+                        .swap_chart
+                        .data_points
+                        .push_back((HISTORY_TICKS as i32, history_tick.swap_usage_percent as i32))
                 }
             }
             ResourceType::Cpu => {
@@ -310,10 +310,10 @@ impl ResourceDetails {
                     .retain(|history_tick| history_tick.0 >= 0);
 
                 for history_tick in resource_history {
-                    cpu_details.cpu_chart.data_points.push_back((
-                        HISTORY_TICKS as i32,
-                        history_tick.cpu_usage_percent as i32,
-                    ))
+                    cpu_details
+                        .cpu_chart
+                        .data_points
+                        .push_back((HISTORY_TICKS as i32, history_tick.cpu_usage_percent as i32))
                 }
             }
             ResourceType::Gpu => {}
@@ -460,54 +460,59 @@ impl ResourceDetails {
                     text("Action"),
                 );
 
-                let main = Grid::with_rows({
-                    let mut rows = Vec::new();
-                    rows.push(processes_headers);
-                    rows.push(processes_totals);
+                let main = container(
+                    Grid::with_rows({
+                        let mut rows = Vec::new();
+                        rows.push(processes_headers);
+                        rows.push(processes_totals);
 
-                    let mut i: u32 = 0;
+                        let mut i: u32 = 0;
 
-                    for process_details in &processes_details.processes {
-                        let is_odd = i % 2 == 1;
-                        // let styler = if is_odd {
-                        //     alternate_process_grid_row()
-                        // } else {
-                        //     primary_process_grid_row()
-                        // };
+                        for process_details in &processes_details.processes {
+                            let is_odd = i % 2 == 1;
+                            // let styler = if is_odd {
+                            //     alternate_process_grid_row()
+                            // } else {
+                            //     primary_process_grid_row()
+                            // };
 
-                        rows.push(grid_row!(
-                            text(format!["{}", process_details.name]),
-                            text(format!["{:.2}%", process_details.cpu_usage]),
-                            text(format![
-                                "{:.2} MB",
-                                process_details.memory_usage as f64 / 1024. / 1024.
-                            ]),
-                            text(format![
-                                "{:.2} MB",
-                                process_details.disk_read as f64 / 1024. / 1024.
-                            ]),
-                            text(format![
-                                "{:.2} MB",
-                                process_details.disk_written as f64 / 1024. / 1024.
-                            ]),
-                            button(text("Kill")).on_press(ResourceDetailsMessage::KillProcessId(
-                                process_details.id
-                            )),
-                        ));
+                            rows.push(grid_row!(
+                                text(format!["{}", process_details.name]),
+                                text(format!["{:.2}%", process_details.cpu_usage]),
+                                text(format![
+                                    "{:.2} MB",
+                                    process_details.memory_usage as f64 / 1024. / 1024.
+                                ]),
+                                text(format![
+                                    "{:.2} MB",
+                                    process_details.disk_read as f64 / 1024. / 1024.
+                                ]),
+                                text(format![
+                                    "{:.2} MB",
+                                    process_details.disk_written as f64 / 1024. / 1024.
+                                ]),
+                                button(text("Kill")).on_press(
+                                    ResourceDetailsMessage::KillProcessId(process_details.id)
+                                ),
+                            ));
 
-                        i += 1;
-                    }
+                            i += 1;
+                        }
 
-                    rows
-                })
-                .column_width(Length::Shrink)
-                .row_spacing(10)
-                .column_spacing(0)
-                .padding(padding::MAIN);
+                        rows
+                    })
+                    .column_width(Length::Shrink)
+                    .row_spacing(10)
+                    .column_spacing(0),
+                )
+                .padding(padding::MAIN)
+                .width(Length::Fill)
+                .align_x(alignment::Horizontal::Center);
 
-                let content = column![header, scrollable(main)]
-                    .spacing(20)
-                    .align_items(alignment::Alignment::Center);
+                let content = column![
+                    header,
+                    scrollable(main)
+                ];
 
                 let container = container(content);
                 container.into()
@@ -765,9 +770,9 @@ impl ResourceDetails {
                 )
                 .center_x()
                 .width(Length::Fill)
-                .padding(padding::MAIN);
+                .padding(padding::SECTION);
 
-                let content = column![header, scrollable(main)].spacing(20);
+                let content = column![header, scrollable(main)];
 
                 let container = container(content);
                 container.into()
@@ -913,9 +918,12 @@ impl ResourceDetails {
                 )
                 .center_x()
                 .width(Length::Fill)
-                .padding(padding::MAIN);
+                .padding(padding::SECTION);
 
-                let content = column![header, scrollable(main)].spacing(20);
+                let content = column![
+                    header,
+                    scrollable(main)
+                ];
 
                 let container = container(content);
                 container.into()

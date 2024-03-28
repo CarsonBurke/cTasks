@@ -25,7 +25,7 @@ pub fn main_content() -> widget::container::Appearance {
 
 pub fn sidebar() -> widget::container::Appearance {
     widget::container::Appearance {
-        background: Some(Background::from(BACKGROUND_2)),
+        background: Some(Background::from(BACKGROUND_3)),
         ..Default::default()
     }
 }
