@@ -27,7 +27,7 @@ pub static ICON: &[u8] = include_bytes!("icon.png");
 pub const PERCENT_PRECISION: u8 = 1;
 /// How many ticks to keep contigious history for
 // TODO: Make this user configurable
-pub const HISTORY_TICKS: u32 = 30;
+pub const HISTORY_TICKS: i32 = 30;
 
 pub mod custom_theme {
     use iced::Color;

@@ -3,7 +3,10 @@ use std::{collections::VecDeque, env, time::Duration};
 use constants::{padding, DisplayState, ICON, PERCENT_PRECISION};
 use iced::{
     advanced::{
-        graphics::{futures::backend::default, image::image_rs::ImageFormat, text::cosmic_text::SwashImage}, widget::Text
+        graphics::{
+            futures::backend::default, image::image_rs::ImageFormat, text::cosmic_text::SwashImage,
+        },
+        widget::Text,
     },
     alignment, color, executor, font,
     theme::{
@@ -12,7 +15,10 @@ use iced::{
         Palette,
     },
     widget::{
-        button, column, container, horizontal_space, keyed_column, progress_bar, row, scrollable::{self, Direction, Properties, RelativeOffset}, shader::wgpu::{hal::empty::Resource, naga::proc}, text, text_input, Column, Container, Image, Row, Scrollable, Space
+        button, column, container, horizontal_space, keyed_column, progress_bar, row,
+        scrollable::{self, Direction, Properties, RelativeOffset},
+        shader::wgpu::{hal::empty::Resource, naga::proc},
+        text, text_input, Column, Container, Image, Row, Scrollable, Space,
     },
     window::{icon, Icon},
     Alignment, Application, Color, Command, Element, Font, Length, Pixels, Renderer, Sandbox,
@@ -39,7 +45,6 @@ mod resource_previews;
 mod styles;
 
 pub fn main() -> iced::Result {
-
     // let image = Image::load_from_memory(ICON).unwrap();
     // let icon = iced::window::icon::from_rgba(ICON.as_bytes().to_vec(), ICON_HEIGHT, ICON_WIDTH).unwrap();
     //let icon = iced::window::icon::from_rgba(rgba, width, height)
@@ -74,7 +79,7 @@ impl CustomThemeChoice {
 // Consider a vec format instead, due to performance in displaying graphs (presumably they take in an array of values)
 // However a vec format will probably have to handle skipped ticks by reformatting the vector, which might ruin any performance benefits
 pub struct ResourceHistoryTick {
-    pub tick: u128,
+    pub tick: i32,
     pub cpu_usage_percent: f32,
     pub cpu_cores_usage_percent: f32,
     pub gpu_usage_percent: f32,
@@ -88,17 +93,17 @@ pub struct ResourceHistoryTick {
 #[derive(Debug, Default)]
 pub struct ResourceHistory {
     // use the difference between the current tick and the last tick
-    pub last_tick: u128,
-    pub cpu: VecDeque<(u128, u32)>,
-    pub cpu_cores: VecDeque<(u128, u32)>,
-    pub ram: VecDeque<(u128, u32)>,
-    pub swap: VecDeque<(u128, u32)>,
-    pub disk_write: VecDeque<(u128, u32)>,
-    pub disk_read: VecDeque<(u128, u32)>,
-    pub gpu: VecDeque<(u128, u32)>,
-    pub vram: VecDeque<(u128, u32)>,
-    pub wifi: VecDeque<(u128, u32)>,
-    pub ethernet: VecDeque<(u128, u32)>,
+    pub last_tick: i32,
+    pub cpu: VecDeque<(i32, i32)>,
+    pub cpu_cores: VecDeque<(i32, i32)>,
+    pub ram: VecDeque<(i32, i32)>,
+    pub swap: VecDeque<(i32, i32)>,
+    pub disk_write: VecDeque<(i32, i32)>,
+    pub disk_read: VecDeque<(i32, i32)>,
+    pub gpu: VecDeque<(i32, i32)>,
+    pub vram: VecDeque<(i32, i32)>,
+    pub wifi: VecDeque<(i32, i32)>,
+    pub ethernet: VecDeque<(i32, i32)>,
 }
 
 #[derive(Debug, Clone)]
@@ -135,7 +140,7 @@ struct App {
     ram_usage_percent: f32,
     swap_usage_percent: f32,
     state: AppState,
-    tick: u128,
+    tick: i32,
     history: Vec<ResourceHistoryTick>,
     resource_history: ResourceHistory,
 }
@@ -219,6 +224,7 @@ impl Application for App {
                 (|| {
                     match message {
                         Message::Tick => {
+                            self.resource_history.last_tick = self.tick;
                             self.tick += 1;
 
                             // Change this to call specific to be more optimal
@@ -271,7 +277,7 @@ impl Application for App {
                             // manage history
 
                             self.history.retain(|tick_data| {
-                                (tick_data.tick + HISTORY_TICKS as u128) < self.tick as u128
+                                (tick_data.tick + HISTORY_TICKS as i32) < self.tick as i32
                             });
 
                             self.history.push(ResourceHistoryTick {
@@ -285,6 +291,54 @@ impl Application for App {
                                 disk_write: 0.,
                                 disk_read: 0.,
                             });
+
+                            // cpu history
+
+                            let tick_delta = self.tick - self.resource_history.last_tick;
+
+                            for history_tick in &mut self.resource_history.cpu {
+                                history_tick.0 -= tick_delta as i32;
+                            }
+
+                            self.resource_history
+                                .cpu
+                                .retain(|history_tick| history_tick.0 >= 0);
+
+                            self.resource_history
+                                .cpu
+                                .push_back((HISTORY_TICKS as i32, self.cpu_usage_percent as i32));
+
+                            // ram history
+
+                            let tick_delta = self.tick - self.resource_history.last_tick;
+
+                            for history_tick in &mut self.resource_history.ram {
+                                history_tick.0 -= tick_delta as i32;
+                            }
+
+                            self.resource_history
+                                .ram
+                                .retain(|history_tick| history_tick.0 >= 0);
+
+                            self.resource_history
+                                .ram
+                                .push_back((HISTORY_TICKS as i32, self.ram_usage_percent as i32));
+
+                            // swap history
+
+                            let tick_delta = self.tick - self.resource_history.last_tick;
+
+                            for history_tick in &mut self.resource_history.swap {
+                                history_tick.0 -= tick_delta as i32;
+                            }
+
+                            self.resource_history
+                                .swap
+                                .retain(|history_tick| history_tick.0 >= 0);
+
+                            self.resource_history
+                                .swap
+                                .push_back((HISTORY_TICKS as i32, self.swap_usage_percent as i32));
 
                             //
 
@@ -306,8 +360,7 @@ impl Application for App {
                                 self.logical_cpu_count,
                                 self.cpu_brand.clone(),
                                 self.cpu_frequency,
-                                &self.history,
-                                self.tick,
+                                &self.resource_history,
                             );
                         }
                         Message::ResourceDetailsMessage(resource_details_message) => {
@@ -337,8 +390,7 @@ impl Application for App {
                                 self.logical_cpu_count,
                                 self.cpu_brand.clone(),
                                 self.cpu_frequency,
-                                &self.history,
-                                self.tick,
+                                &self.resource_history,
                             );
                         }
                         _ => {}
@@ -456,12 +508,12 @@ impl Application for App {
                 //     .padding(padding::MAIN);
 
                 let main = container(
-//                    Scrollable::new(
-                        column![self
-                            .main_content
-                            .view()
-                            .map(move |message| Message::ResourceDetailsMessage(message))]
-                        .spacing(10),
+                    //                    Scrollable::new(
+                    column![self
+                        .main_content
+                        .view()
+                        .map(move |message| Message::ResourceDetailsMessage(message))]
+                    .spacing(10),
                     // )
                     // .direction(Direction::Vertical(Properties::default())),
                 )

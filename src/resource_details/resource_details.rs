@@ -18,15 +18,13 @@ use plotters_iced::{Chart, ChartWidget};
 use sysinfo::{MemoryRefreshKind, Pid, Process, ProcessRefreshKind, RefreshKind, System};
 
 use crate::{
-    constants::{custom_theme, font_sizes, padding, sizings, HISTORY_TICKS},
-    styles::{
+    constants::{custom_theme, font_sizes, padding, sizings, HISTORY_TICKS}, styles::{
         self,
         container::{
             alternate_process_grid_row, divider_background_1, primary_process_grid_row,
             resource_details_child, resource_details_header,
         },
-    },
-    ResourceHistoryTick, ResourceType,
+    }, ResourceHistory, ResourceHistoryTick, ResourceType
 };
 
 use super::{
@@ -175,8 +173,7 @@ impl ResourceDetails {
         logical_cpu_count: u32,
         cpu_brand: String,
         cpu_frequency: u64,
-        resource_history: &Vec<ResourceHistoryTick>,
-        tick: u128,
+        resource_history: &ResourceHistory,
     ) {
         match self.resource {
             ResourceType::Applications => {}
@@ -253,39 +250,10 @@ impl ResourceDetails {
 
                 // RAM usage history
 
-                for history_tick in &mut memory_details.ram_chart.data_points {
-                    history_tick.0 -= 1;
-                }
-
-                memory_details
-                    .ram_chart
-                    .data_points
-                    .retain(|history_tick| history_tick.0 >= 0);
-
-                for history_tick in resource_history {
-                    memory_details
-                        .ram_chart
-                        .data_points
-                        .push_back((HISTORY_TICKS as i32, history_tick.ram_usage_percent as i32))
-                }
+                memory_details.ram_chart.data_points = resource_history.ram.clone();
 
                 // Swap usage history
-
-                for history_tick in &mut memory_details.swap_chart.data_points {
-                    history_tick.0 -= 1;
-                }
-
-                memory_details
-                    .swap_chart
-                    .data_points
-                    .retain(|history_tick| history_tick.0 >= 0);
-
-                for history_tick in resource_history {
-                    memory_details
-                        .swap_chart
-                        .data_points
-                        .push_back((HISTORY_TICKS as i32, history_tick.swap_usage_percent as i32))
-                }
+                memory_details.swap_chart.data_points = resource_history.swap.clone();
             }
             ResourceType::Cpu => {
                 let Some(cpu_details) = &mut self.cpu_details else {
@@ -300,21 +268,7 @@ impl ResourceDetails {
 
                 // cpu usage history
 
-                for history_tick in &mut cpu_details.cpu_chart.data_points {
-                    history_tick.0 -= 1;
-                }
-
-                cpu_details
-                    .cpu_chart
-                    .data_points
-                    .retain(|history_tick| history_tick.0 >= 0);
-
-                for history_tick in resource_history {
-                    cpu_details
-                        .cpu_chart
-                        .data_points
-                        .push_back((HISTORY_TICKS as i32, history_tick.cpu_usage_percent as i32))
-                }
+                cpu_details.cpu_chart.data_points = resource_history.cpu.clone();
             }
             ResourceType::Gpu => {}
             ResourceType::Disk => {}
