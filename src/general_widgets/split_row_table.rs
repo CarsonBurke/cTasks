@@ -1,5 +1,0 @@
-// read-only
-
-struct SplitRowTable {
-    
-}

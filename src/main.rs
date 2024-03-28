@@ -43,6 +43,7 @@ mod constants;
 mod resource_details;
 mod resource_previews;
 mod styles;
+mod general_widgets;
 
 pub fn main() -> iced::Result {
     // let image = Image::load_from_memory(ICON).unwrap();
