@@ -26,8 +26,6 @@ use crate::{
     styles::container::divider_background_1,
 };
 
-type Params = Vec<((String, String), (String, String))>;
-
 pub fn split_table_double<'a, Message: 'a>(
     params: Vec<((Text<'a>, Text<'a>), (Text<'a>, Text<'a>))>,
 ) -> Column<'a, Message> {
