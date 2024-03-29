@@ -108,7 +108,7 @@ pub struct ResourceHistory {
 }
 
 #[derive(Debug, Clone)]
-enum Message {
+enum AppMessage {
     FontLoaded(Result<(), font::Error>),
     Loaded(Result<(), String>),
     SidebarItemParentMessage(usize, SidebarItemParentMessage),
@@ -151,12 +151,12 @@ async fn load() -> Result<(), String> {
 }
 
 impl Application for App {
-    type Message = Message;
+    type Message = AppMessage;
     type Theme = Theme;
     type Executor = executor::Default;
     type Flags = ();
 
-    fn new(_flags: ()) -> (Self, Command<Message>) {
+    fn new(_flags: ()) -> (Self, Command<AppMessage>) {
         let system_info = System::new_all();
         let physical_cpu_count = system_info.physical_core_count().unwrap_or(1) as u32/* system_info.cpus().len() as u32 */;
         let logical_cpu_count = system_info.cpus().len() as u32;
@@ -176,8 +176,8 @@ impl Application for App {
             Command::batch(vec![
                 // font::load(iced_aw::NERD_FONT_BYTES).map(Message::FontLoaded),
                 // Command::perform(load(), Message::Loaded),
-                font::load(iced_aw::BOOTSTRAP_FONT_BYTES).map(Message::FontLoaded),
-                Command::perform(load(), Message::Loaded),
+                font::load(iced_aw::BOOTSTRAP_FONT_BYTES).map(AppMessage::FontLoaded),
+                Command::perform(load(), AppMessage::Loaded),
             ]),
         )
     }
@@ -186,10 +186,10 @@ impl Application for App {
         String::from("C Tasks")
     }
 
-    fn update(&mut self, message: Message) -> Command<Message> {
+    fn update(&mut self, message: AppMessage) -> Command<AppMessage> {
         match self.state {
             AppState::Loading => match message {
-                Message::Loaded(Ok(state)) => {
+                AppMessage::Loaded(Ok(state)) => {
                     println!("loading success");
 
                     self.sidebar_items = vec![
@@ -209,7 +209,7 @@ impl Application for App {
 
                     self.main_content = ResourceDetails::new(ResourceType::Processes);
                 }
-                Message::Loaded(Err(_)) => {
+                AppMessage::Loaded(Err(_)) => {
                     println!("loading failure");
                 }
                 _ => {}
@@ -224,7 +224,7 @@ impl Application for App {
 
                 (|| {
                     match message {
-                        Message::Tick => {
+                        AppMessage::Tick => {
                             self.resource_history.last_tick = self.tick;
                             self.tick += 1;
 
@@ -364,11 +364,11 @@ impl Application for App {
                                 &self.resource_history,
                             );
                         }
-                        Message::ResourceDetailsMessage(resource_details_message) => {
+                        AppMessage::ResourceDetailsMessage(resource_details_message) => {
                             let _ = self
                                 .main_content
                                 .update(resource_details_message)
-                                .map(Message::ResourceDetailsMessage);
+                                .map(AppMessage::ResourceDetailsMessage);
 
                             // match resource_details_message {
                             //     ResourceDetailsMessage::SwitchSortDirection => {
@@ -378,7 +378,7 @@ impl Application for App {
                             //     _ => {}
                             // }
                         }
-                        Message::SetResourceDetails(resource) => {
+                        AppMessage::SetResourceDetails(resource) => {
                             if resource == self.main_content.resource {
                                 return;
                             }
@@ -403,12 +403,12 @@ impl Application for App {
         Command::none()
     }
 
-    fn subscription(&self) -> Subscription<Message> {
+    fn subscription(&self) -> Subscription<AppMessage> {
         iced::time::every(std::time::Duration::from_millis(self.tick_interval))
-            .map(|_| Message::Tick)
+            .map(|_| AppMessage::Tick)
     }
 
-    fn view(&self) -> Element<Message> {
+    fn view(&self) -> Element<AppMessage> {
         match self.state {
             AppState::Loading => {
                 let spinner = Spinner::new();
@@ -457,10 +457,10 @@ impl Application for App {
                             (
                                 i,
                                 button(element.view(i).map(move |message| {
-                                    Message::SidebarItemParentMessage(i, message)
+                                    AppMessage::SidebarItemParentMessage(i, message)
                                 }))
                                 .style(theme::Button::Text)
-                                .on_press(Message::SetResourceDetails(element.resource.clone()))
+                                .on_press(AppMessage::SetResourceDetails(element.resource.clone()))
                                 .width(Length::Fill)
                                 /* .style(styles::button::button_appearance(&self.theme())) */
                                 .into(),
@@ -513,7 +513,7 @@ impl Application for App {
                     column![self
                         .main_content
                         .view()
-                        .map(move |message| Message::ResourceDetailsMessage(message))]
+                        .map(move |message| AppMessage::ResourceDetailsMessage(message))]
                     .spacing(10),
                     // )
                     // .direction(Direction::Vertical(Properties::default())),

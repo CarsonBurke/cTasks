@@ -1,5 +1,5 @@
 use iced::{
-    widget::{column, container, row, text, Column},
+    widget::{column, container, row, text, Column, Row, Text},
     Element, Length,
 };
 
@@ -8,17 +8,20 @@ use crate::{
     styles::container::resource_details_child,
 };
 
-/// (Icon, Header text), Column<body elements>
 pub fn section_box<'a, Message: 'a>(
-    header: (iced_aw::BootstrapIcon, String),
+    header: (Text<'a>, Text<'a>),
     body: Column<'a, Message>,
 ) -> Column<'a, Message> {
-    let header = row![
-        text(header.0)
-            .font(iced_aw::BOOTSTRAP_FONT)
-            .size(font_sizes::H2),
-        text(String::from(header.1)).size(font_sizes::H2),
-    ];
+    // let header = row![
+    //     text(header.0)
+    //         .font(iced_aw::BOOTSTRAP_FONT)
+    //         .size(font_sizes::H2),
+    //     text(String::from(header.1)).size(font_sizes::H2),
+    // ].spacing(padding::MAIN);
+
+    // let header = header.spacing(padding::MAIN);
+    let header =
+        row![header.0.size(font_sizes::H2), header.1.size(font_sizes::H2)].spacing(padding::MAIN);
 
     let body_content = container(body)
         .style(resource_details_child())

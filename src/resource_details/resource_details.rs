@@ -20,7 +20,7 @@ use sysinfo::{MemoryRefreshKind, Pid, Process, ProcessRefreshKind, RefreshKind, 
 use crate::{
     constants::{custom_theme, font_sizes, padding, sizings, HISTORY_TICKS},
     general_widgets::{
-        section_box::section_box, split_table_double::split_table_double,
+        icons::bootstrap_icon, section_box::section_box, split_table_double::split_table_double,
         split_table_single::split_table_single,
     },
     styles::{
@@ -545,16 +545,19 @@ impl ResourceDetails {
                 .max_width(sizings::MAX_MAIN_CONTENT_CHILDREN_WIDTH);
 
                 let swap_details = section_box(
-                    (BootstrapIcon::HddRack, String::from("Swap")),
-                    column![{
+                    (
+                        bootstrap_icon(BootstrapIcon::HddRack),
+                        text(String::from("Swap")),
+                    ),
+                    {
                         if memory_details.swap_usage == 0 || memory_details.swap_total == 0 {
                             column!["No Swap data to display"]
                         } else {
                             column![
                                 split_table_double(vec![(
                                     (
-                                        "Usage".to_string(),
-                                        format!(
+                                        text("Usage".to_string()),
+                                        text(format!(
                                             "{:.2} / {:.2} GB",
                                             memory_details.swap_usage as f64
                                                 / 1024.
@@ -564,16 +567,16 @@ impl ResourceDetails {
                                                 / 1024.
                                                 / 1024.
                                                 / 1024.
-                                        )
+                                        ))
                                     ),
                                     (
-                                        "Percent used".to_string(),
-                                        format!(
+                                        text("Percent used".to_string()),
+                                        text(format!(
                                             "{:.1}%",
                                             memory_details.swap_usage as f64
                                                 / memory_details.swap_total as f64
                                                 * 100.
-                                        )
+                                        ))
                                     )
                                 )]),
                                 container(row![])
@@ -583,72 +586,35 @@ impl ResourceDetails {
                                 container(memory_details.swap_chart.view())
                             ]
                         }
-                    }],
+                    },
                 );
 
                 let thermals = section_box(
-                    (BootstrapIcon::Thermometer, String::from("Thermals")),
-                    column![split_table_single(vec![(
-                        String::from("Temperature"),
-                        String::from("25℃") /* format!("{:.2}°C") */
-                    ),])],
+                    (
+                        bootstrap_icon(BootstrapIcon::Thermometer),
+                        text(String::from("Thermals")),
+                    ),
+                    split_table_single(vec![(
+                        text(String::from("Temperature")),
+                        text(String::from("25℃")), /* format!("{:.2}°C") */
+                    )]),
                 );
 
-                let about = column![
-                    row![
-                        text(iced_aw::graphics::icons::BootstrapIcon::InfoCircle.to_string())
-                            .font(iced_aw::BOOTSTRAP_FONT)
-                            .size(font_sizes::H2),
-                        text(String::from("About")).size(font_sizes::H2)
-                    ]
-                    .spacing(padding::MAIN),
-                    container(column![
-                        column![
-                            text(String::from("Speed")).style(Text::Color(custom_theme::GREY_TEXT)),
-                            text(String::from("25℃")),
-                        ]
-                        .padding(padding::MAIN)
-                        .spacing(padding::PORTION),
-                        container(row![])
-                            .style(divider_background_1())
-                            .width(Length::Fill)
-                            .height(1),
-                        column![
-                            text(String::from("Slots used"))
-                                .style(Text::Color(custom_theme::GREY_TEXT)),
-                            text(String::from("25℃")),
-                        ]
-                        .padding(padding::MAIN)
-                        .spacing(padding::PORTION),
-                        container(row![])
-                            .style(divider_background_1())
-                            .width(Length::Fill)
-                            .height(1),
-                        column![
-                            text(String::from("RAM Type"))
-                                .style(Text::Color(custom_theme::GREY_TEXT)),
-                            text(String::from("25℃")),
-                        ]
-                        .padding(padding::MAIN)
-                        .spacing(padding::PORTION),
-                        container(row![])
-                            .style(divider_background_1())
-                            .width(Length::Fill)
-                            .height(1),
-                        column![
-                            text(String::from("Swapiness"))
-                                .style(Text::Color(custom_theme::GREY_TEXT)),
-                            text(String::from("N/A")),
-                        ]
-                        .padding(padding::MAIN)
-                        .spacing(padding::PORTION),
-                    ])
-                    .style(resource_details_child())
-                    .width(Length::Fill)
-                    .center_y()
-                ]
-                .max_width(sizings::MAX_MAIN_CONTENT_CHILDREN_WIDTH)
-                .spacing(padding::PORTION);
+                let about = section_box(
+                    (
+                        bootstrap_icon(BootstrapIcon::InfoCircle),
+                        text(String::from("Body")),
+                    ),
+                    column![split_table_single(vec![
+                        (text(String::from("Speed")), text(String::from("25℃"))),
+                        (text(String::from("Slots used")), text(String::from("25℃"))),
+                        (
+                            text(String::from("RAM type")),
+                            text(String::from("SODIMM?"))
+                        ),
+                        (text(String::from("Swapiness")), text(String::from("N/A"))),
+                    ])],
+                );
 
                 // modify swapiness
                 // other?
