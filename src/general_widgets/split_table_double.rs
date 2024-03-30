@@ -26,6 +26,8 @@ use crate::{
     styles::container::divider_background_1,
 };
 
+use super::seperators::seperator_background_1;
+
 pub fn split_table_double<'a, Message: 'a>(
     params: Vec<((Text<'a>, Text<'a>), (Text<'a>, Text<'a>))>,
 ) -> Column<'a, Message> {
@@ -37,10 +39,7 @@ pub fn split_table_double<'a, Message: 'a>(
 
         for ((header1, descriptor1), (header2, descriptor2)) in params {
             let seperator = if i != last_index {
-                container(row![])
-                    .style(divider_background_1())
-                    .width(Length::Fill)
-                    .height(1)
+                seperator_background_1()
             } else {
                 container(row![])
             };

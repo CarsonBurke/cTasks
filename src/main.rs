@@ -40,10 +40,10 @@ use sysinfo::{
 use crate::constants::HISTORY_TICKS;
 
 mod constants;
+mod general_widgets;
 mod resource_details;
 mod resource_previews;
 mod styles;
-mod general_widgets;
 
 pub fn main() -> iced::Result {
     // let image = Image::load_from_memory(ICON).unwrap();
@@ -76,27 +76,12 @@ impl CustomThemeChoice {
     }
 }
 
-#[derive(Debug, Default, Clone)]
-// Consider a vec format instead, due to performance in displaying graphs (presumably they take in an array of values)
-// However a vec format will probably have to handle skipped ticks by reformatting the vector, which might ruin any performance benefits
-pub struct ResourceHistoryTick {
-    pub tick: i32,
-    pub cpu_usage_percent: f32,
-    pub cpu_cores_usage_percent: f32,
-    pub gpu_usage_percent: f32,
-    pub vram_usage: f32,
-    pub ram_usage_percent: f32,
-    pub swap_usage_percent: f32,
-    pub disk_write: f32,
-    pub disk_read: f32,
-}
-
 #[derive(Debug, Default)]
 pub struct ResourceHistory {
     // use the difference between the current tick and the last tick
     pub last_tick: i32,
     pub cpu: VecDeque<(i32, i32)>,
-    pub cpu_cores: VecDeque<(i32, i32)>,
+    pub logical_cores: Vec<VecDeque<(i32, i32)>>,
     pub ram: VecDeque<(i32, i32)>,
     pub swap: VecDeque<(i32, i32)>,
     pub disk_write: VecDeque<(i32, i32)>,
@@ -105,6 +90,22 @@ pub struct ResourceHistory {
     pub vram: VecDeque<(i32, i32)>,
     pub wifi: VecDeque<(i32, i32)>,
     pub ethernet: VecDeque<(i32, i32)>,
+}
+
+impl ResourceHistory {
+    fn new(logical_cores_count: u32) -> Self {
+        let mut logical_cores = vec![];
+
+        // initialize history queue for each logical core
+        for _ in 0..logical_cores_count {
+            logical_cores.push(VecDeque::new());
+        }
+
+        Self {
+            logical_cores,
+            ..Default::default()
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -142,8 +143,10 @@ struct App {
     swap_usage_percent: f32,
     state: AppState,
     tick: i32,
-    history: Vec<ResourceHistoryTick>,
+    logical_cores_usage_percent: Vec<f32>,
+    logical_cores_frequencies: Vec<u64>,
     resource_history: ResourceHistory,
+    // track_logical_cores: bool,
 }
 
 async fn load() -> Result<(), String> {
@@ -161,25 +164,39 @@ impl Application for App {
         let physical_cpu_count = system_info.physical_core_count().unwrap_or(1) as u32/* system_info.cpus().len() as u32 */;
         let logical_cpu_count = system_info.cpus().len() as u32;
 
-        (
-            Self {
-                tick_interval: 1000,
-                state: AppState::Loading,
-                preferences: Preferences::new(),
-                system_info,
-                physical_cpu_count,
-                logical_cpu_count,
-                tick: 0,
-                history: Vec::new(),
-                ..Default::default()
-            },
-            Command::batch(vec![
-                // font::load(iced_aw::NERD_FONT_BYTES).map(Message::FontLoaded),
-                // Command::perform(load(), Message::Loaded),
-                font::load(iced_aw::BOOTSTRAP_FONT_BYTES).map(AppMessage::FontLoaded),
-                Command::perform(load(), AppMessage::Loaded),
-            ]),
-        )
+        let cpu_brand = system_info.global_cpu_info().brand().to_string();
+
+        let mut logical_cores_usage_percent = Vec::new();
+        let mut logical_cores_frequencies = Vec::new();
+
+        for _ in 0..logical_cpu_count {
+            logical_cores_usage_percent.push(0.);
+            logical_cores_frequencies.push(0);
+        }
+
+        let new_self = Self {
+            tick_interval: 1000,
+            state: AppState::Loading,
+            preferences: Preferences::new(),
+            system_info,
+            physical_cpu_count,
+            logical_cpu_count,
+            tick: 0,
+            cpu_brand,
+            logical_cores_usage_percent,
+            logical_cores_frequencies,
+            resource_history: ResourceHistory::new(logical_cpu_count),
+            ..Default::default()
+        };
+
+        let command = Command::batch(vec![
+            // font::load(iced_aw::NERD_FONT_BYTES).map(Message::FontLoaded),
+            // Command::perform(load(), Message::Loaded),
+            font::load(iced_aw::BOOTSTRAP_FONT_BYTES).map(AppMessage::FontLoaded),
+            Command::perform(load(), AppMessage::Loaded),
+        ]);
+
+        (new_self, command)
     }
 
     fn title(&self) -> String {
@@ -231,7 +248,7 @@ impl Application for App {
                             // Change this to call specific to be more optimal
 
                             self.system_info
-                                .refresh_cpu_specifics(CpuRefreshKind::new().with_cpu_usage());
+                                .refresh_cpu_specifics(CpuRefreshKind::new().with_cpu_usage().with_frequency());
                             self.system_info.refresh_processes_specifics(
                                 ProcessRefreshKind::new().with_user(UpdateKind::Always),
                             );
@@ -245,18 +262,24 @@ impl Application for App {
                             let cpus = self.system_info.cpus();
                             // Relative to the number of logical cores. So 200% means 2 cores fully used
                             let mut total_used: f32 = 0.;
-                            let mut cpu_count: u32 = 0;
 
-                            for cpu in cpus {
-                                total_used += cpu.cpu_usage();
-                                cpu_count += 1;
+                            for (index, cpu) in cpus.iter().enumerate() {
+
+                                let cpu_usage = cpu.cpu_usage();
+                                let frequency = cpu.frequency();
+
+                                self.logical_cores_usage_percent[index] =
+                                    cpu_usage;
+
+                                self.logical_cores_frequencies[index] = frequency;
+
+                                total_used += cpu_usage;
                             }
 
-                            self.cpu_usage_percent = total_used / cpu_count as f32;
+                            self.cpu_usage_percent = total_used / self.logical_cpu_count as f32;
 
                             let global_cpu_info = self.system_info.global_cpu_info();
 
-                            self.cpu_brand = global_cpu_info.brand().to_string();
                             self.cpu_frequency = global_cpu_info.frequency();
 
                             // ram
@@ -275,24 +298,6 @@ impl Application for App {
                             self.swap_usage_percent =
                                 total_used as f32 / total_capacity as f32 * 100.;
 
-                            // manage history
-
-                            self.history.retain(|tick_data| {
-                                (tick_data.tick + HISTORY_TICKS as i32) < self.tick as i32
-                            });
-
-                            self.history.push(ResourceHistoryTick {
-                                tick: self.tick,
-                                cpu_usage_percent: self.cpu_usage_percent,
-                                cpu_cores_usage_percent: total_used as f32 / cpu_count as f32,
-                                gpu_usage_percent: 0.,
-                                vram_usage: 0.,
-                                ram_usage_percent: self.ram_usage_percent,
-                                swap_usage_percent: self.swap_usage_percent,
-                                disk_write: 0.,
-                                disk_read: 0.,
-                            });
-
                             // cpu history
 
                             let tick_delta = self.tick - self.resource_history.last_tick;
@@ -309,9 +314,25 @@ impl Application for App {
                                 .cpu
                                 .push_back((HISTORY_TICKS as i32, self.cpu_usage_percent as i32));
 
-                            // ram history
+                            // logical cores
 
-                            let tick_delta = self.tick - self.resource_history.last_tick;
+                            // logical cores history
+
+                            for (index, history) in self.resource_history.logical_cores.iter_mut().enumerate() {
+
+                                for history_tick in history.iter_mut() {
+                                    history_tick.0 -= tick_delta as i32;
+                                }
+
+                                history.retain(|history_tick| history_tick.0 >= 0);
+
+                                history.push_back((
+                                    HISTORY_TICKS as i32,
+                                    self.logical_cores_usage_percent[index] as i32,
+                                ));
+                            }
+
+                            // ram history
 
                             for history_tick in &mut self.resource_history.ram {
                                 history_tick.0 -= tick_delta as i32;
@@ -326,8 +347,6 @@ impl Application for App {
                                 .push_back((HISTORY_TICKS as i32, self.ram_usage_percent as i32));
 
                             // swap history
-
-                            let tick_delta = self.tick - self.resource_history.last_tick;
 
                             for history_tick in &mut self.resource_history.swap {
                                 history_tick.0 -= tick_delta as i32;
@@ -362,21 +381,32 @@ impl Application for App {
                                 self.cpu_brand.clone(),
                                 self.cpu_frequency,
                                 &self.resource_history,
+                                &self.logical_cores_usage_percent,
+                                &self.logical_cores_frequencies,
                             );
                         }
                         AppMessage::ResourceDetailsMessage(resource_details_message) => {
+                            match resource_details_message {
+                                ResourceDetailsMessage::ToggleLogicalCores(_toggle_state) => {
+                                    self.main_content.on_tick(
+                                        &mut self.system_info,
+                                        self.cpu_usage_percent,
+                                        self.physical_cpu_count,
+                                        self.logical_cpu_count,
+                                        self.cpu_brand.clone(),
+                                        self.cpu_frequency,
+                                        &self.resource_history,
+                                        &self.logical_cores_usage_percent,
+                                        &self.logical_cores_frequencies,
+                                    );
+                                }
+                                _ => {}
+                            }
+
                             let _ = self
                                 .main_content
                                 .update(resource_details_message)
                                 .map(AppMessage::ResourceDetailsMessage);
-
-                            // match resource_details_message {
-                            //     ResourceDetailsMessage::SwitchSortDirection => {
-                            //         self.main_content
-                            //             .on_tick(&mut self.system_info, self.cpu_count);
-                            //     }
-                            //     _ => {}
-                            // }
                         }
                         AppMessage::SetResourceDetails(resource) => {
                             if resource == self.main_content.resource {
@@ -392,6 +422,8 @@ impl Application for App {
                                 self.cpu_brand.clone(),
                                 self.cpu_frequency,
                                 &self.resource_history,
+                                &self.logical_cores_usage_percent,
+                                &self.logical_cores_frequencies,
                             );
                         }
                         _ => {}
@@ -451,24 +483,23 @@ impl Application for App {
                 ]
                 .spacing(10);
 
-                let sidebar_content: Element<_> =
-                    {
-                        keyed_column(self.sidebar_items.iter().enumerate().map(|(i, element)| {
-                            (
-                                i,
-                                button(element.view(i).map(move |message| {
-                                    AppMessage::SidebarItemParentMessage(i, message)
-                                }))
-                                .style(theme::Button::Text)
-                                .on_press(AppMessage::SetResourceDetails(element.resource.clone()))
-                                .width(Length::Fill)
-                                /* .style(styles::button::button_appearance(&self.theme())) */
-                                .into(),
-                            )
-                        }))
-                        .spacing(10)
-                        .into()
-                    };
+                let sidebar_content: Element<_> = {
+                    keyed_column(self.sidebar_items.iter().enumerate().map(|(i, element)| {
+                        (
+                            i,
+                            button(element.view(i).map(move |message| {
+                                AppMessage::SidebarItemParentMessage(i, message)
+                            }))
+                            .style(theme::Button::Text)
+                            .on_press(AppMessage::SetResourceDetails(element.resource.clone()))
+                            .width(Length::Fill)
+                            /* .style(styles::button::button_appearance(&self.theme())) */
+                            .into(),
+                        )
+                    }))
+                    .spacing(10)
+                    .into()
+                };
 
                 // let content: Element<_> = keyed_column().into();
 
