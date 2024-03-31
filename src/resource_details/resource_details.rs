@@ -15,10 +15,14 @@ use iced::{
 use iced_aw::{grid, grid_row, BootstrapIcon, Grid, GridRow, Wrap};
 use ordered_float::OrderedFloat;
 use plotters_iced::{Chart, ChartWidget};
-use sysinfo::{MemoryRefreshKind, Pid, Process, ProcessRefreshKind, RefreshKind, System};
+use sysinfo::{DiskKind, MemoryRefreshKind, Pid, Process, ProcessRefreshKind, RefreshKind, System};
 
 use crate::{
-    constants::{custom_theme, font_sizes, padding, sizings, HISTORY_TICKS},
+    constants::{
+        custom_theme, font_sizes, padding,
+        sizings::{self, DEFAULT_CHART_HEIGHT},
+        HISTORY_TICKS,
+    },
     general_widgets::{
         icons::bootstrap_icon,
         section::{section, section_box, section_box_headless},
@@ -33,7 +37,8 @@ use crate::{
             resource_details_child, resource_details_header,
         },
     },
-    ResourceHistory, ResourceType,
+    utils::format_bytes,
+    DiskData, ResourceHistory, ResourceType,
 };
 
 use super::{
@@ -101,6 +106,18 @@ impl ProcessesDetailsProcs {
 }
 
 #[derive(Debug)]
+pub struct DiskDetails {
+    pub read_bytes: u64,
+    pub written_bytes: u64,
+    pub total_space: u64,
+    pub total_used: u64,
+    pub is_removable: bool,
+    pub kind: DiskKind,
+    pub written_chart: ResourceChart,
+    pub read_chart: ResourceChart,
+}
+
+#[derive(Debug)]
 pub struct CpuDetails {
     pub cpu_usage_percent: f32,
     pub physical_core_count: u32,
@@ -132,6 +149,8 @@ pub struct ResourceDetails {
     processes_details: Option<ProcessesDetails>,
     cpu_details: Option<CpuDetails>,
     pub show_logical_cores: bool,
+    disks_details: Vec<Option<DiskDetails>>,
+    disks_index: usize,
 }
 
 impl ResourceDetails {
@@ -178,6 +197,9 @@ impl ResourceDetails {
                     logical_cores_frequencies: Vec::new(),
                 })
             }
+            ResourceType::Disk => {
+                self.disks_details = vec![];
+            }
             _ => {}
         };
     }
@@ -193,6 +215,7 @@ impl ResourceDetails {
         resource_history: &ResourceHistory,
         logical_core_usage_percent: &Vec<f32>,
         logical_cores_frequencies: &Vec<u64>,
+        disk_data: &Vec<DiskData>,
     ) {
         match self.resource {
             ResourceType::Applications => {}
@@ -310,7 +333,24 @@ impl ResourceDetails {
                 }
             }
             ResourceType::Gpu => {}
-            ResourceType::Disk => {}
+            ResourceType::Disk => {
+                for disk_details in &mut self.disks_details {
+                    let Some(disk_details) = disk_details else {
+                        continue;
+                    };
+
+                    // We should not be initializing here.
+
+                    disk_details.read_bytes = disk_details.read_bytes;
+                    disk_details.written_bytes = disk_details.written_bytes;
+                    disk_details.total_space = disk_details.total_space;
+                    disk_details.total_used = disk_details.total_used;
+                    disk_details.is_removable = disk_details.is_removable;
+                    disk_details.kind = disk_details.kind;
+                    disk_details.written_chart = ResourceChart::new();
+                    disk_details.read_chart = ResourceChart::new();
+                }
+            }
             ResourceType::Wifi => {}
             ResourceType::Ethernet => {}
         };
@@ -554,7 +594,7 @@ impl ResourceDetails {
                                     )
                                 )]),
                                 seperator_background_1(),
-                                container(memory_details.ram_chart.view())
+                                container(memory_details.ram_chart.view(None))
                             ]
                         }
                     },
@@ -597,7 +637,7 @@ impl ResourceDetails {
                                     )
                                 )]),
                                 seperator_background_1(),
-                                container(memory_details.swap_chart.view())
+                                container(memory_details.swap_chart.view(None))
                             ]
                         }
                     },
@@ -720,9 +760,14 @@ impl ResourceDetails {
                                                 )
                                             )]),
                                             seperator_background_1(),
-                                            cpu_details.logical_core_charts[i].view(),
+                                            cpu_details.logical_core_charts[i].view(Some(
+                                                Length::Fixed(DEFAULT_CHART_HEIGHT / 2.)
+                                            )),
                                         ])
-                                        .max_width(sizings::MAX_MAIN_CONTENT_CHILDREN_WIDTH as f32 / 2. - padding::MAIN as f32 * 2.)
+                                        .max_width(
+                                            sizings::MAX_MAIN_CONTENT_CHILDREN_WIDTH as f32 / 3.
+                                                - padding::MAIN as f32 * 3.,
+                                        )
                                         //.max_width((sizings::MAX_MAIN_CONTENT_CHILDREN_WIDTH as f32 - padding::MAIN as f32) / 2./* sizings::MAX_MAIN_CONTENT_CHILDREN_WIDTH as f32 / 2. - padding::MAIN as f32 */)
                                         .into(),
                                     );
@@ -755,7 +800,7 @@ impl ResourceDetails {
                                     )
                                 )]),
                                 seperator_background_1(),
-                                cpu_details.cpu_chart.view(),
+                                cpu_details.cpu_chart.view(None),
                             ],
                         )
                     }
@@ -820,7 +865,122 @@ impl ResourceDetails {
                 container.into()
             }
             ResourceType::Disk => {
-                let content = row![];
+                let Some(Some(disk_details)) = self.disks_details.get(self.disks_index) else {
+                    return text("Waiting for tick, or no disk data").into();
+                };
+
+                let header = container(row!["Disk name"])
+                    .center_x()
+                    .style(resource_details_header())
+                    .width(Length::Fill)
+                    .padding(padding::MAIN);
+
+                let read_ui = section_box(
+                    (
+                        bootstrap_icon(BootstrapIcon::Eye),
+                        text(String::from("Read")),
+                        row![],
+                    ),
+                    {
+                        column![
+                            split_table_single(vec![(
+                                text("Reads".to_string()),
+                                text(format!("{:.2} GB", format_bytes(disk_details.read_bytes)))
+                            )]),
+                            seperator_background_1(),
+                            container(disk_details.read_chart.view(None))
+                        ]
+                    },
+                );
+
+                let write_ui = section_box(
+                    (
+                        bootstrap_icon(BootstrapIcon::Pen),
+                        text(String::from("Written")),
+                        row![],
+                    ),
+                    {
+                        column![
+                            split_table_single(vec![(
+                                text("Writes".to_string()),
+                                text(format!(
+                                    "{:.2} GB",
+                                    format_bytes(disk_details.written_bytes)
+                                ))
+                            )]),
+                            seperator_background_1(),
+                            container(disk_details.written_chart.view(None))
+                        ]
+                    },
+                );
+
+                let thermals = section_box(
+                    (
+                        bootstrap_icon(BootstrapIcon::Thermometer),
+                        text(String::from("Thermals")),
+                        row![],
+                    ),
+                    split_table_single(vec![(
+                        text(String::from("Temperature")),
+                        text(String::from("25℃")), /* format!("{:.2}°C") */
+                    )]),
+                );
+
+                let about = section_box(
+                    (
+                        bootstrap_icon(BootstrapIcon::InfoCircle),
+                        text(String::from("About")),
+                        row![],
+                    ),
+                    column![
+                        split_table_double(vec![(
+                            (
+                                text("Usage".to_string()),
+                                text(format!(
+                                    "{:.2} / {:.2} GB",
+                                    disk_details.total_used as f64 / 1024. / 1024. / 1024.,
+                                    disk_details.total_space as f64 / 1024. / 1024. / 1024.
+                                ))
+                            ),
+                            (
+                                text("Percent used".to_string()),
+                                text(format!(
+                                    "{:.1}%",
+                                    disk_details.total_used as f64
+                                        / disk_details.total_space as f64
+                                        * 100.
+                                ))
+                            )
+                        )]),
+                        split_table_single(vec![
+                            (text(String::from("Brand")), text(String::from("25℃"))),
+                            (
+                                text(String::from("Kind")),
+                                text(format!("{}", disk_details.kind))
+                            ),
+                            (
+                                text(String::from("Is removable")),
+                                text(format!("{}", disk_details.is_removable))
+                            ),
+                            (
+                                text(String::from("RAM type")),
+                                text(String::from("SODIMM?"))
+                            ),
+                            (text(String::from("Swapiness")), text(String::from("N/A"))),
+                        ])
+                    ],
+                );
+
+                let main = container(
+                    column![read_ui, write_ui, thermals, about]
+                        .spacing(20)
+                        .align_items(alignment::Alignment::Center),
+                )
+                .center_x()
+                .width(Length::Fill)
+                .padding(padding::SECTION);
+
+                let content = column![header, scrollable(main)];
 
                 let container = container(content);
                 container.into()

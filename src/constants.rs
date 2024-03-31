@@ -11,6 +11,7 @@ pub mod font_sizes {
 
 pub mod sizings {
     pub const MAX_MAIN_CONTENT_CHILDREN_WIDTH: u16 = 800;
+    pub const DEFAULT_CHART_HEIGHT: f32 = 300.;
 }
 
 #[derive(Debug, Default)]

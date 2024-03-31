@@ -7,7 +7,7 @@ use plotters::{
 };
 use plotters_iced::{Chart, ChartBuilder, ChartWidget, DrawingBackend};
 
-use crate::constants::custom_theme;
+use crate::constants::{custom_theme, sizings::DEFAULT_CHART_HEIGHT};
 
 use super::resource_details::ResourceDetailsMessage;
 
@@ -66,11 +66,14 @@ impl Chart<ResourceDetailsMessage> for ResourceChart {
                         3: 0.2,
                     },
                 )
-                .border_style(ShapeStyle::from(RGBColor {
-                    0: (custom_theme::PRIMARY.r * 255.) as u8,
-                    1: (custom_theme::PRIMARY.g * 255.) as u8,
-                    2: (custom_theme::PRIMARY.b * 255.) as u8,
-                }).stroke_width(1)),
+                .border_style(
+                    ShapeStyle::from(RGBColor {
+                        0: (custom_theme::PRIMARY.r * 255.) as u8,
+                        1: (custom_theme::PRIMARY.g * 255.) as u8,
+                        2: (custom_theme::PRIMARY.b * 255.) as u8,
+                    })
+                    .stroke_width(1),
+                ),
             )
             .expect("failed to draw chart data");
     }
@@ -114,15 +117,12 @@ impl ResourceChart {
         Self { data_points }
     }
 
-    pub fn set_data() {
+    pub fn set_data() {}
 
-    }
-
-    pub fn view(&self) -> Element<ResourceDetailsMessage> {
-        // 3:2 ratio
+    pub fn view(&self, height: Option<Length>) -> Element<ResourceDetailsMessage> {
         ChartWidget::new(self)
             // .width(Length::Fixed(600.))
-            .height(Length::Fixed(300.))
+            .height(height.unwrap_or(Length::Fixed(DEFAULT_CHART_HEIGHT)))
             .into()
     }
 }

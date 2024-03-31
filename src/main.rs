@@ -31,10 +31,11 @@ use iced_aw::{
     split, BootstrapIcon, FloatingElement, NerdIcon, Spinner, NERD_FONT,
 };
 use resource_details::resource_details::{ResourceDetails, ResourceDetailsMessage};
+use sidebar::sidebar_item::{SidebarItemParent, SidebarItemParentMessage};
 use styles::container::{main_content, sidebar};
 use sysinfo::{
-    Cpu, CpuRefreshKind, Disks, MemoryRefreshKind, Networks, ProcessRefreshKind, RefreshKind,
-    System, UpdateKind,
+    Cpu, CpuRefreshKind, DiskKind, Disks, MemoryRefreshKind, Networks, ProcessRefreshKind,
+    RefreshKind, System, UpdateKind,
 };
 
 use crate::constants::HISTORY_TICKS;
@@ -43,7 +44,9 @@ mod constants;
 mod general_widgets;
 mod resource_details;
 mod resource_previews;
+mod sidebar;
 mod styles;
+mod utils;
 
 pub fn main() -> iced::Result {
     // let image = Image::load_from_memory(ICON).unwrap();
@@ -84,8 +87,8 @@ pub struct ResourceHistory {
     pub logical_cores: Vec<VecDeque<(i32, i32)>>,
     pub ram: VecDeque<(i32, i32)>,
     pub swap: VecDeque<(i32, i32)>,
-    pub disk_write: VecDeque<(i32, i32)>,
-    pub disk_read: VecDeque<(i32, i32)>,
+    pub disk_write: Vec<VecDeque<(i32, i32)>>,
+    pub disk_read: Vec<VecDeque<(i32, i32)>>,
     pub gpu: VecDeque<(i32, i32)>,
     pub vram: VecDeque<(i32, i32)>,
     pub wifi: VecDeque<(i32, i32)>,
@@ -104,6 +107,29 @@ impl ResourceHistory {
         Self {
             logical_cores,
             ..Default::default()
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct DiskData {
+    read_bytes: u64,
+    written_bytes: u64,
+    total_space: u64,
+    total_used: u64,
+    is_removable: bool,
+    kind: DiskKind,
+}
+
+impl Default for DiskData {
+    fn default() -> Self {
+        Self {
+            read_bytes: 0,
+            written_bytes: 0,
+            total_space: 0,
+            total_used: 0,
+            is_removable: false,
+            kind: DiskKind::Unknown(0),
         }
     }
 }
@@ -146,6 +172,8 @@ struct App {
     logical_cores_usage_percent: Vec<f32>,
     logical_cores_frequencies: Vec<u64>,
     resource_history: ResourceHistory,
+    disk_data: Vec<DiskData>,
+    disk_index: usize,
     // track_logical_cores: bool,
 }
 
@@ -247,8 +275,9 @@ impl Application for App {
 
                             // Change this to call specific to be more optimal
 
-                            self.system_info
-                                .refresh_cpu_specifics(CpuRefreshKind::new().with_cpu_usage().with_frequency());
+                            self.system_info.refresh_cpu_specifics(
+                                CpuRefreshKind::new().with_cpu_usage().with_frequency(),
+                            );
                             self.system_info.refresh_processes_specifics(
                                 ProcessRefreshKind::new().with_user(UpdateKind::Always),
                             );
@@ -257,6 +286,17 @@ impl Application for App {
                             self.disk_info = Disks::new_with_refreshed_list();
                             self.network_info = Networks::new_with_refreshed_list();
 
+                            let disk_count = self.disk_info.len();
+                            if disk_count > self.disk_data.len() {
+                                self.disk_data.push(DiskData {
+                                    ..Default::default()
+                                })
+                            }
+
+                            for disk in &self.disk_info {
+                                
+                            }
+
                             // cpu usage
 
                             let cpus = self.system_info.cpus();
@@ -264,12 +304,10 @@ impl Application for App {
                             let mut total_used: f32 = 0.;
 
                             for (index, cpu) in cpus.iter().enumerate() {
-
                                 let cpu_usage = cpu.cpu_usage();
                                 let frequency = cpu.frequency();
 
-                                self.logical_cores_usage_percent[index] =
-                                    cpu_usage;
+                                self.logical_cores_usage_percent[index] = cpu_usage;
 
                                 self.logical_cores_frequencies[index] = frequency;
 
@@ -318,8 +356,9 @@ impl Application for App {
 
                             // logical cores history
 
-                            for (index, history) in self.resource_history.logical_cores.iter_mut().enumerate() {
-
+                            for (index, history) in
+                                self.resource_history.logical_cores.iter_mut().enumerate()
+                            {
                                 for history_tick in history.iter_mut() {
                                     history_tick.0 -= tick_delta as i32;
                                 }
@@ -383,6 +422,7 @@ impl Application for App {
                                 &self.resource_history,
                                 &self.logical_cores_usage_percent,
                                 &self.logical_cores_frequencies,
+                                &self.disk_data,
                             );
                         }
                         AppMessage::ResourceDetailsMessage(resource_details_message) => {
@@ -398,6 +438,7 @@ impl Application for App {
                                         &self.resource_history,
                                         &self.logical_cores_usage_percent,
                                         &self.logical_cores_frequencies,
+                                        &self.disk_data,
                                     );
                                 }
                                 _ => {}
@@ -424,6 +465,7 @@ impl Application for App {
                                 &self.resource_history,
                                 &self.logical_cores_usage_percent,
                                 &self.logical_cores_frequencies,
+                                &self.disk_data,
                             );
                         }
                         _ => {}
@@ -600,7 +642,7 @@ impl Application for App {
 }
 
 #[derive(Debug, Default, Clone, PartialEq)]
-enum ResourceType {
+pub enum ResourceType {
     #[default]
     Applications,
     Processes,
@@ -610,178 +652,6 @@ enum ResourceType {
     Disk,
     Wifi,
     Ethernet,
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct ResourcePreviewMetrics {
-    memory_usage: u64,
-    swap_usage: u64,
-    network_usage: u64,
-    disk_written: u64,
-    disk_read: u64,
-    cpu_usage: f32,
-    gpu_usage: f32,
-}
-
-#[derive(Debug, Default)]
-enum SidebarItemParentDisplayState {
-    #[default]
-    Shown,
-    Hidden,
-}
-
-#[derive(Debug, Default)]
-pub struct SidebarItemParent {
-    header: String,
-    usage_percent: Option<f32>,
-    resource: ResourceType,
-    metric: Option<String>,
-}
-
-#[derive(Debug, Clone)]
-pub enum SidebarItemParentMessage {
-    Tick,
-}
-
-impl SidebarItemParent {
-    fn new(resource: ResourceType, header: String) -> Self {
-        Self {
-            resource,
-            header,
-            usage_percent: None,
-            metric: None,
-            ..Default::default()
-        }
-    }
-
-    fn on_tick(
-        &mut self,
-        system_info: &System,
-        cpu_usage_percent: f32,
-        memory_usage_percent: f32,
-        disk_info: &Disks,
-        network_info: &Networks,
-    ) {
-        let (usage_percent, metric): (Option<f32>, Option<String>) = match self.resource {
-            ResourceType::Applications => (None, None),
-            ResourceType::Processes => {
-                let processes = system_info.processes();
-
-                (None, Some(processes.len().to_string()))
-            }
-            ResourceType::Cpu => {
-                let usage_percent = cpu_usage_percent;
-                self.usage_percent = Some(usage_percent);
-                self.metric = Some(format!("{:.1}%", usage_percent));
-
-                (Some(usage_percent), Some(format!("{:.1}%", usage_percent)))
-            }
-            ResourceType::Memory => {
-                let usage_percent = memory_usage_percent;
-
-                (Some(usage_percent), Some(format!("{:.1}%", usage_percent)))
-            }
-            ResourceType::Gpu => (None, None),
-            ResourceType::Disk => {
-                let mut total_read = 0;
-                let mut total_written = 0;
-
-                /* for disk in disk_info {
-                    disk.
-                    total_read += disk.name().
-                }
-
-                system_info. */
-
-                for (pid, process) in system_info.processes() {
-                    let disk_usage = process.disk_usage();
-
-                    total_read += disk_usage.read_bytes;
-                    total_written += disk_usage.written_bytes;
-                }
-
-                (
-                    None,
-                    Some(format!("{:.1}% {:.1}%", total_read, total_written)),
-                )
-            }
-            ResourceType::Wifi => {
-                let mut total_received = 0;
-                let mut total_transmitted = 0;
-
-                for (interface_name, data) in network_info {
-                    total_received += data.received();
-                    total_transmitted += data.transmitted();
-                }
-
-                (
-                    None,
-                    Some(format!("{:.1} {:.1}", total_received, total_transmitted)),
-                )
-            }
-            ResourceType::Ethernet => (None, None),
-        };
-
-        self.usage_percent = usage_percent;
-        self.metric = metric;
-    }
-
-    fn view(&self, i: usize) -> Element<SidebarItemParentMessage> {
-        match self.resource {
-            ResourceType::Applications => String::from(BootstrapIcon::WindowStack),
-            ResourceType::Processes => String::from(BootstrapIcon::PersonWorkspace),
-            ResourceType::Cpu => String::from(BootstrapIcon::Cpu),
-            ResourceType::Memory => String::from(BootstrapIcon::Memory),
-            ResourceType::Gpu => String::from(BootstrapIcon::GpuCard),
-            ResourceType::Disk => String::from(BootstrapIcon::Hdd),
-            ResourceType::Wifi => String::from(BootstrapIcon::Wifi),
-            ResourceType::Ethernet => String::from(BootstrapIcon::DiagramTwo),
-        };
-
-        let icon_text = match self.resource {
-            ResourceType::Applications => String::from(BootstrapIcon::WindowStack),
-            ResourceType::Processes => String::from(BootstrapIcon::PersonWorkspace),
-            ResourceType::Cpu => String::from(BootstrapIcon::Cpu),
-            ResourceType::Memory => String::from(BootstrapIcon::Memory),
-            ResourceType::Gpu => String::from(BootstrapIcon::GpuCard),
-            ResourceType::Disk => String::from(BootstrapIcon::Hdd),
-            ResourceType::Wifi => String::from(BootstrapIcon::Wifi),
-            ResourceType::Ethernet => String::from(BootstrapIcon::DiagramTwo),
-        };
-
-        let preview_state = {
-            if let Some(usage_percent) = self.usage_percent {
-                row![progress_bar(0.0..=100.0, usage_percent)
-                    .height(5)
-                    .width(Length::Fill)
-                    .style(|_: &_| styles::progress_bar::primary_background_5())]
-            } else {
-                row![/* text(String::from("No bar")) */]
-            }
-        };
-
-        let container = container(
-            column![
-                row![
-                    text(icon_text).font(iced_aw::BOOTSTRAP_FONT),
-                    text(self.header.clone()),
-                    text(self.metric.clone().unwrap_or("".to_string())).size(10),
-                    // {
-                    //     if let Some(metric) = &self.metric {
-                    //         return text(metric).size(10).into();
-                    //     }
-
-                    //     text("".to_string()).size(10)
-                    // }
-                ]
-                .spacing(10)
-                .align_items(Alignment::Center),
-                preview_state
-            ]
-            .spacing(5),
-        );
-        container.into()
-    }
 }
 
 #[derive(Debug, Default)]
@@ -817,7 +687,3 @@ impl Preferences {
     // container.into()
     // }
 }
-
-pub struct ResourceGraph;
-
-impl ResourceGraph {}

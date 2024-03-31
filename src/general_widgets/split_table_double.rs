@@ -16,9 +16,7 @@
 // }
 
 use iced::{
-    theme,
-    widget::{column, container, horizontal_space, row, text, Column, Text},
-    Element, Length,
+    alignment, theme, widget::{column, container, horizontal_space, row, text, Column, Text}, Element, Length
 };
 
 use crate::{
@@ -51,10 +49,9 @@ pub fn split_table_double<'a, Message: 'a>(
                             header1.style(theme::Text::Color(custom_theme::GREY_TEXT)),
                             descriptor1,
                         ],
-                        horizontal_space(),
                         column![
-                            header2.style(theme::Text::Color(custom_theme::GREY_TEXT)),
-                            descriptor2,
+                            row![horizontal_space(), header2.style(theme::Text::Color(custom_theme::GREY_TEXT))],
+                            row![horizontal_space(), descriptor2],
                         ],
                     ]
                     .padding(padding::MAIN),
