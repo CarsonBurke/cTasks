@@ -118,6 +118,7 @@ impl ResourceHistory {
 
 #[derive(Debug)]
 pub struct DiskData {
+    id: u32,
     read_bytes: u64,
     written_bytes: u64,
     total_space: u64,
@@ -129,6 +130,7 @@ pub struct DiskData {
 impl Default for DiskData {
     fn default() -> Self {
         Self {
+            id: 0,
             read_bytes: 0,
             written_bytes: 0,
             total_space: 0,
@@ -142,6 +144,11 @@ impl Default for DiskData {
 #[derive(Debug, Default)]
 pub struct ResourcePreviews {
     pub disks: HashMap<u32, DiskPreview>,
+}
+
+#[derive(Debug, Default)]
+pub struct ResourcesDetails {
+    // pub disks: HashMap<u32, DiskPreview>,
 }
 
 #[derive(Debug, Clone)]
@@ -186,6 +193,8 @@ struct App {
     disk_data: Vec<DiskData>,
     disk_index: usize,
     previews: ResourcePreviews,
+    resources_details: ResourcesDetails,
+    disk_names_by_id: HashMap<u32, String>
     // track_logical_cores: bool,
 }
 
@@ -545,7 +554,7 @@ impl Application for App {
                                 AppMessage::SidebarItemParentMessage(i, message)
                             }))
                             .style(theme::Button::Text)
-                            .on_press(AppMessage::SetResourceDetails(element.resource.clone()))
+                            .on_press(AppMessage::SetResourceDetails(element.resource))
                             .width(Length::Fill)
                             /* .style(styles::button::button_appearance(&self.theme())) */
                             .into(),
@@ -560,9 +569,7 @@ impl Application for App {
 
                     for (_, disk_preview) in &self.previews.disks {
                         children.push(disk_preview.view().map(|message| {
-                            AppMessage::ResourcePreviewMessage(
-                                ResourcePreviewMessage::DiskPreviewMessage(message),
-                            )
+                            AppMessage::ResourcePreviewMessage(message)
                         }));
                     }
                     // children.push(DiskPreview::new().view());
@@ -670,7 +677,7 @@ impl Application for App {
     }
 }
 
-#[derive(Debug, Default, Clone, PartialEq)]
+#[derive(Debug, Default, Clone, PartialEq, Copy)]
 pub enum ResourceType {
     #[default]
     Applications,
@@ -683,9 +690,21 @@ pub enum ResourceType {
     Ethernet,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Preferences {
     display_state: DisplayState,
+    percent_precision: u8,
+    history_ticks: i32,
+}
+
+impl Default for Preferences {
+    fn default() -> Self {
+        Self {
+            percent_precision: 1,
+            history_ticks: 30,
+            ..Default::default()
+        }
+    }
 }
 
 pub enum PreferencesMessage {

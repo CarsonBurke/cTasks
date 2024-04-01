@@ -5,10 +5,10 @@ pub mod padding {
 }
 
 pub mod font_sizes {
-    pub const H2: u16 = 19;
-    pub const H3: u16 = 17;
-    pub const H4: u16 = 15;
-    pub const P: u16 = 15;
+    pub const H2: u16 = 17;
+    pub const H3: u16 = 15;
+    pub const H4: u16 = 14;
+    pub const P: u16 = 14;
 }
 
 pub mod sizings {
@@ -30,7 +30,7 @@ pub static ICON: &[u8] = include_bytes!("icon.png");
 pub const PERCENT_PRECISION: u8 = 1;
 /// How many ticks to keep contigious history for
 // TODO: Make this user configurable
-pub const HISTORY_TICKS: i32 = 30;
+pub const HISTORY_TICKS: u32 = 30;
 
 pub mod custom_theme {
     use iced::Color;

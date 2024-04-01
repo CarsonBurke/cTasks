@@ -1,27 +1,21 @@
 use iced::{
     theme,
-    widget::{column, container, progress_bar, row, text},
+    widget::{button, column, container, progress_bar, row, text},
     Element, Length,
 };
 use iced_aw::BootstrapIcon;
 
 use crate::{
-    constants::{custom_theme, font_sizes, padding},
-    general_widgets::icons::bootstrap_icon,
-    styles,
-    utils::format_bytes,
+    constants::{custom_theme, font_sizes, padding}, general_widgets::icons::bootstrap_icon, resource_details::resource_details::ResourceDetailsMessage, styles, utils::format_bytes, ResourceType
 };
 
-use super::resource_preview::ResourcePreview;
-
-#[derive(Default, Debug, Clone)]
-pub struct DiskPreviewMessage {}
+use super::resource_preview::{ResourcePreview, ResourcePreviewMessage};
 
 pub struct DiskPreviewOnTickParams {}
 
 #[derive(Debug, Default)]
 pub struct DiskPreview {
-    message: DiskPreviewMessage,
+    resource: ResourceType,
     disk_id: usize,
     disk_name: String,
     disk_size: u64,
@@ -34,13 +28,14 @@ pub struct DiskPreview {
 impl DiskPreview {
     pub fn new() -> Self {
         Self {
+            resource: ResourceType::Disk,
             ..Default::default()
         }
     }
 
     fn on_tick(&mut self, params: DiskPreviewOnTickParams) {}
 
-    pub fn view(&self) -> Element<DiskPreviewMessage> {
+    pub fn view(&self) -> Element<ResourcePreviewMessage> {
         let content = column![
             row![
                 bootstrap_icon(BootstrapIcon::Hdd).size(font_sizes::H2),
@@ -80,7 +75,8 @@ impl DiskPreview {
         ]
         .spacing(padding::PORTION);
 
-        let container = container(content);
-        container.into()
+        let button = button(content).on_press(ResourcePreviewMessage::ResourceDetailsFor(self.disk_id, self.resource));
+
+        button.into()
     }
 }

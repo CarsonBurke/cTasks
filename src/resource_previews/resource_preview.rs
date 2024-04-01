@@ -1,10 +1,10 @@
 use iced::Element;
 
-use super::disk_preview::DiskPreviewMessage;
+use crate::ResourceType;
 
 #[derive(Debug, Clone)]
 pub enum ResourcePreviewMessage {
-    DiskPreviewMessage(DiskPreviewMessage),
+    ResourceDetailsFor(usize, ResourceType),
 }
 
 pub trait ResourcePreview<Message, OnTickParams> {
