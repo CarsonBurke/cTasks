@@ -194,8 +194,7 @@ struct App {
     disk_index: usize,
     previews: ResourcePreviews,
     resources_details: ResourcesDetails,
-    disk_names_by_id: HashMap<u32, String>
-    // track_logical_cores: bool,
+    disk_names_by_id: HashMap<u32, String>, // track_logical_cores: bool,
 }
 
 async fn load() -> Result<(), String> {
@@ -447,6 +446,13 @@ impl Application for App {
                             );
                         }
                         AppMessage::ResourceDetailsMessage(resource_details_message) => {
+                            // println!("message: {:?}", resource_details_message);
+
+                            let _ = self
+                                .main_content
+                                .update(resource_details_message)
+                                .map(AppMessage::ResourceDetailsMessage);
+
                             match resource_details_message {
                                 ResourceDetailsMessage::ToggleLogicalCores(_toggle_state) => {
                                     self.main_content.on_tick(
@@ -464,11 +470,6 @@ impl Application for App {
                                 }
                                 _ => {}
                             }
-
-                            let _ = self
-                                .main_content
-                                .update(resource_details_message)
-                                .map(AppMessage::ResourceDetailsMessage);
                         }
                         AppMessage::SetResourceDetails(resource) => {
                             if resource == self.main_content.resource {
@@ -568,9 +569,11 @@ impl Application for App {
                     let mut children/* : Vec<Element<_>> */ = Vec::new();
 
                     for (_, disk_preview) in &self.previews.disks {
-                        children.push(disk_preview.view().map(|message| {
-                            AppMessage::ResourcePreviewMessage(message)
-                        }));
+                        children.push(
+                            disk_preview
+                                .view()
+                                .map(|message| AppMessage::ResourcePreviewMessage(message)),
+                        );
                     }
                     // children.push(DiskPreview::new().view());
 
@@ -702,7 +705,7 @@ impl Default for Preferences {
         Self {
             percent_precision: 1,
             history_ticks: 30,
-            ..Default::default()
+            display_state: DisplayState::Shown,
         }
     }
 }
@@ -714,7 +717,6 @@ pub enum PreferencesMessage {
 impl Preferences {
     fn new() -> Self {
         Self {
-            display_state: DisplayState::Shown,
             ..Default::default()
         }
     }

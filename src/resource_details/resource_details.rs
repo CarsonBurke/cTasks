@@ -130,7 +130,7 @@ pub struct CpuDetails {
     pub logical_cores_frequencies: Vec<u64>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum ResourceDetailsMessage {
     KillProcessId(Pid),
     SortByIndex(u32),
