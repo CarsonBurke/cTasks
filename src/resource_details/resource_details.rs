@@ -531,7 +531,9 @@ impl ResourceDetails {
                                 ]),
                                 button(text("Kill")).on_press(
                                     ResourceDetailsMessage::KillProcessId(process_details.id)
-                                ),
+                                ).style(iced::theme::Button::Custom(Box::new(
+                                    styles::button::Primary {},
+                                ))),
                             ));
 
                             i += 1;

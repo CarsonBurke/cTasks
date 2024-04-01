@@ -6,7 +6,12 @@ use iced::{
 use iced_aw::BootstrapIcon;
 
 use crate::{
-    constants::{custom_theme, font_sizes, padding}, general_widgets::icons::bootstrap_icon, resource_details::resource_details::ResourceDetailsMessage, styles, utils::format_bytes, ResourceType
+    constants::{custom_theme, font_sizes, padding},
+    general_widgets::icons::bootstrap_icon,
+    resource_details::resource_details::ResourceDetailsMessage,
+    styles,
+    utils::format_bytes,
+    ResourceType,
 };
 
 use super::resource_preview::{ResourcePreview, ResourcePreviewMessage};
@@ -75,7 +80,14 @@ impl DiskPreview {
         ]
         .spacing(padding::PORTION);
 
-        let button = button(content).on_press(ResourcePreviewMessage::ResourceDetailsFor(self.disk_id, self.resource));
+        let button = button(content)
+            .on_press(ResourcePreviewMessage::ResourceDetailsFor(
+                self.disk_id,
+                self.resource,
+            ))
+            .style(iced::theme::Button::Custom(Box::new(
+                styles::button::Background3Blended {},
+            )));
 
         button.into()
     }
