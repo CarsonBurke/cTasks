@@ -6,6 +6,8 @@ pub mod padding {
 
 pub mod font_sizes {
     pub const H2: u16 = 19;
+    pub const H3: u16 = 17;
+    pub const H4: u16 = 15;
     pub const P: u16 = 15;
 }
 

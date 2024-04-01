@@ -1,4 +1,8 @@
-use std::{collections::VecDeque, env, time::Duration};
+use std::{
+    collections::{HashMap, VecDeque},
+    env,
+    time::Duration,
+};
 
 use constants::{padding, DisplayState, ICON, PERCENT_PRECISION};
 use iced::{
@@ -31,6 +35,7 @@ use iced_aw::{
     split, BootstrapIcon, FloatingElement, NerdIcon, Spinner, NERD_FONT,
 };
 use resource_details::resource_details::{ResourceDetails, ResourceDetailsMessage};
+use resource_previews::{disk_preview::DiskPreview, resource_preview::ResourcePreviewMessage};
 use sidebar::sidebar_item::{SidebarItemParent, SidebarItemParentMessage};
 use styles::container::{main_content, sidebar};
 use sysinfo::{
@@ -134,6 +139,11 @@ impl Default for DiskData {
     }
 }
 
+#[derive(Debug, Default)]
+pub struct ResourcePreviews {
+    pub disks: HashMap<u32, DiskPreview>,
+}
+
 #[derive(Debug, Clone)]
 enum AppMessage {
     FontLoaded(Result<(), font::Error>),
@@ -141,6 +151,7 @@ enum AppMessage {
     SidebarItemParentMessage(usize, SidebarItemParentMessage),
     ResourceDetailsMessage(ResourceDetailsMessage),
     SetResourceDetails(ResourceType),
+    ResourcePreviewMessage(ResourcePreviewMessage),
     Tick,
 }
 
@@ -174,6 +185,7 @@ struct App {
     resource_history: ResourceHistory,
     disk_data: Vec<DiskData>,
     disk_index: usize,
+    previews: ResourcePreviews,
     // track_logical_cores: bool,
 }
 
@@ -202,7 +214,7 @@ impl Application for App {
             logical_cores_frequencies.push(0);
         }
 
-        let new_self = Self {
+        let mut new_self = Self {
             tick_interval: 1000,
             state: AppState::Loading,
             preferences: Preferences::new(),
@@ -216,6 +228,8 @@ impl Application for App {
             resource_history: ResourceHistory::new(logical_cpu_count),
             ..Default::default()
         };
+
+        new_self.previews.disks.insert(0, DiskPreview::new());
 
         let command = Command::batch(vec![
             // font::load(iced_aw::NERD_FONT_BYTES).map(Message::FontLoaded),
@@ -293,9 +307,7 @@ impl Application for App {
                                 })
                             }
 
-                            for disk in &self.disk_info {
-                                
-                            }
+                            for disk in &self.disk_info {}
 
                             // cpu usage
 
@@ -543,15 +555,32 @@ impl Application for App {
                     .into()
                 };
 
+                let sidebar_content_new = Column::with_children({
+                    let mut children/* : Vec<Element<_>> */ = Vec::new();
+
+                    for (_, disk_preview) in &self.previews.disks {
+                        children.push(disk_preview.view().map(|message| {
+                            AppMessage::ResourcePreviewMessage(
+                                ResourcePreviewMessage::DiskPreviewMessage(message),
+                            )
+                        }));
+                    }
+                    // children.push(DiskPreview::new().view());
+
+                    children
+                });
+
                 // let content: Element<_> = keyed_column().into();
 
-                let sidebar = container(column![sidebar_header, sidebar_content,].spacing(20))
-                    /* .style(theme::Container::Box) */
-                    .style(sidebar())
-                    .height(Length::Fill)
-                    .padding(padding::MAIN)
-                    .width(Length::Shrink)
-                    .max_width(200);
+                let sidebar = container(
+                    column![sidebar_header, sidebar_content, sidebar_content_new].spacing(20),
+                )
+                /* .style(theme::Container::Box) */
+                .style(sidebar())
+                .height(Length::Fill)
+                .padding(padding::MAIN)
+                .width(Length::Shrink)
+                .max_width(200);
 
                 // let header = container(row![
                 //     horizontal_space(),
