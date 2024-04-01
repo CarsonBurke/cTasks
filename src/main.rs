@@ -34,6 +34,7 @@ use iced_aw::{
     native::Split,
     split, BootstrapIcon, FloatingElement, NerdIcon, Spinner, NERD_FONT,
 };
+use preferences::Preferences;
 use resource_details::resource_details::{ResourceDetails, ResourceDetailsMessage};
 use resource_previews::{disk_preview::DiskPreview, resource_preview::ResourcePreviewMessage};
 use sidebar::sidebar_item::{SidebarItemParent, SidebarItemParentMessage};
@@ -52,6 +53,7 @@ mod resource_previews;
 mod sidebar;
 mod styles;
 mod utils;
+mod preferences;
 
 pub fn main() -> iced::Result {
     // let image = Image::load_from_memory(ICON).unwrap();
@@ -691,49 +693,4 @@ pub enum ResourceType {
     Disk,
     Wifi,
     Ethernet,
-}
-
-#[derive(Debug)]
-pub struct Preferences {
-    display_state: DisplayState,
-    percent_precision: u8,
-    history_ticks: i32,
-}
-
-impl Default for Preferences {
-    fn default() -> Self {
-        Self {
-            percent_precision: 1,
-            history_ticks: 30,
-            display_state: DisplayState::Shown,
-        }
-    }
-}
-
-pub enum PreferencesMessage {
-    DisplayState(DisplayState),
-}
-
-impl Preferences {
-    fn new() -> Self {
-        Self {
-            ..Default::default()
-        }
-    }
-
-    // fn view(&self) -> Element<PreferencesMessage> {
-    // let content = column![
-    //     text(String::from("Preferences")),
-    //     text_input("tick interval".to_string(), "value".to_string())
-    // ]
-    // .spacing(10);
-
-    // let container = container(
-    //     FloatingElement::new(content)
-    //         .anchor(Anchor::SouthEast)
-    //         .offset(20.0)
-    //         .hide(false),
-    // );
-    // container.into()
-    // }
 }
