@@ -276,7 +276,7 @@ impl Application for App {
                     ];
                     self.state = AppState::Loaded;
 
-                    self.main_content = ResourceDetails::new(ResourceType::Processes);
+                    self.main_content = ResourceDetails::new(&self.preferences, ResourceType::Processes);
                 }
                 AppMessage::Loaded(Err(_)) => {
                     println!("loading failure");
@@ -445,6 +445,7 @@ impl Application for App {
                                 &self.logical_cores_usage_percent,
                                 &self.logical_cores_frequencies,
                                 &self.disk_data,
+                                &self.preferences,
                             );
                         }
                         AppMessage::ResourceDetailsMessage(resource_details_message) => {
@@ -468,6 +469,7 @@ impl Application for App {
                                         &self.logical_cores_usage_percent,
                                         &self.logical_cores_frequencies,
                                         &self.disk_data,
+                                        &self.preferences,
                                     );
                                 }
                                 _ => {}
@@ -478,7 +480,7 @@ impl Application for App {
                                 return;
                             }
 
-                            self.main_content.apply_resource_type(resource);
+                            self.main_content.apply_resource_type(resource, &self.preferences);
                             self.main_content.on_tick(
                                 &mut self.system_info,
                                 self.cpu_usage_percent,
@@ -490,6 +492,7 @@ impl Application for App {
                                 &self.logical_cores_usage_percent,
                                 &self.logical_cores_frequencies,
                                 &self.disk_data,
+                                &self.preferences,
                             );
                         }
                         _ => {}

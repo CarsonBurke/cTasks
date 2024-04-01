@@ -22,23 +22,19 @@ use crate::{
         custom_theme, font_sizes, padding,
         sizings::{self, DEFAULT_CHART_HEIGHT},
         HISTORY_TICKS,
-    },
-    general_widgets::{
+    }, general_widgets::{
         icons::bootstrap_icon,
         section::{section, section_box, section_box_headless},
         seperators::seperator_background_1,
         split_table_double::split_table_double,
         split_table_single::split_table_single,
-    },
-    styles::{
+    }, preferences::Preferences, styles::{
         self,
         container::{
             alternate_process_grid_row, divider_background_1, primary_process_grid_row,
             resource_details_child, resource_details_header,
         },
-    },
-    utils::format_bytes,
-    DiskData, ResourceHistory, ResourceType,
+    }, utils::format_bytes, DiskData, ResourceHistory, ResourceType
 };
 
 use super::{
@@ -154,16 +150,16 @@ pub struct ResourceDetails {
 }
 
 impl ResourceDetails {
-    pub fn new(resource: ResourceType) -> Self {
+    pub fn new(preferences: &Preferences, resource: ResourceType) -> Self {
         let mut new_self = Self {
             ..Default::default()
         };
-        new_self.apply_resource_type(resource);
+        new_self.apply_resource_type(resource, preferences);
 
         new_self
     }
 
-    pub fn apply_resource_type(&mut self, resource: ResourceType) {
+    pub fn apply_resource_type(&mut self, resource: ResourceType, preferences: &Preferences) {
         self.resource = resource.clone();
 
         match &resource {
@@ -180,8 +176,8 @@ impl ResourceDetails {
                     ram_total: 0,
                     swap_usage: 0,
                     swap_total: 0,
-                    ram_chart: ResourceChart::new(),
-                    swap_chart: ResourceChart::new(),
+                    ram_chart: ResourceChart::new(preferences),
+                    swap_chart: ResourceChart::new(preferences),
                 })
             }
             ResourceType::Cpu => {
@@ -191,7 +187,7 @@ impl ResourceDetails {
                     logical_core_count: 0,
                     brand: String::new(),
                     frequency: 0,
-                    cpu_chart: ResourceChart::new(),
+                    cpu_chart: ResourceChart::new(preferences),
                     logical_core_charts: Vec::new(),
                     logical_cores_usage_percents: Vec::new(),
                     logical_cores_frequencies: Vec::new(),
@@ -216,6 +212,7 @@ impl ResourceDetails {
         logical_core_usage_percent: &Vec<f32>,
         logical_cores_frequencies: &Vec<u64>,
         disk_data: &Vec<DiskData>,
+        preferences: &Preferences,
     ) {
         match self.resource {
             ResourceType::Applications => {}
@@ -312,7 +309,7 @@ impl ResourceDetails {
 
                     if cpu_details.logical_core_charts.len() == 0 {
                         for _ in 0..logical_cpu_count {
-                            cpu_details.logical_core_charts.push(ResourceChart::new());
+                            cpu_details.logical_core_charts.push(ResourceChart::new(preferences));
                         }
                     }
 
@@ -347,8 +344,8 @@ impl ResourceDetails {
                     disk_details.total_used = disk_details.total_used;
                     disk_details.is_removable = disk_details.is_removable;
                     disk_details.kind = disk_details.kind;
-                    disk_details.written_chart = ResourceChart::new();
-                    disk_details.read_chart = ResourceChart::new();
+                    disk_details.written_chart = ResourceChart::new(preferences);
+                    disk_details.read_chart = ResourceChart::new(preferences);
                 }
             }
             ResourceType::Wifi => {}
