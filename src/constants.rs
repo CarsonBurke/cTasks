@@ -1,7 +1,16 @@
+// Figure out a way to reconcile spacings to work for use-cases and not just size names
 pub mod padding {
     pub const SECTION: u16 = 22;
     pub const MAIN: u16 = 10;
     pub const PORTION: u16 = 6;
+}
+
+pub mod spacings {
+    pub const XSMALL: u16 = 4;
+    pub const SMALL: u16 = 8;
+    pub const MEDIUM: u16 = 16;
+    pub const LARGE: u16 = 32;
+    pub const X_LARGE: u16 = 64;
 }
 
 pub mod font_sizes {

@@ -8,7 +8,7 @@ use plotters::{
 use plotters_iced::{Chart, ChartBuilder, ChartWidget, DrawingBackend};
 
 use crate::{
-    constants::{custom_theme, padding, sizings::DEFAULT_CHART_HEIGHT},
+    constants::{custom_theme, padding, sizings::DEFAULT_CHART_HEIGHT, spacings},
     preferences::Preferences,
 };
 
@@ -30,7 +30,7 @@ impl Chart<ResourceDetailsMessage> for ResourceChart {
     fn build_chart<DB: DrawingBackend>(&self, state: &Self::State, mut builder: ChartBuilder<DB>) {
         //build your chart here, please refer to plotters for more details
 
-        let build = builder.x_label_area_size(0).margin(padding::MAIN as u32);
+        let build = builder.x_label_area_size(0).margin(spacings::MEDIUM as u32);
 
         if self.chart_y_axis_labels == true {
             build.y_label_area_size(28);

@@ -22,19 +22,24 @@ use crate::{
         custom_theme, font_sizes, padding,
         sizings::{self, DEFAULT_CHART_HEIGHT},
         HISTORY_TICKS,
-    }, general_widgets::{
+    },
+    general_widgets::{
         icons::bootstrap_icon,
         section::{section, section_box, section_box_headless},
         seperators::seperator_background_1,
         split_table_double::split_table_double,
         split_table_single::split_table_single,
-    }, preferences::Preferences, styles::{
+    },
+    preferences::Preferences,
+    styles::{
         self,
         container::{
             alternate_process_grid_row, divider_background_1, primary_process_grid_row,
             resource_details_child, resource_details_header,
         },
-    }, utils::format_bytes, DiskData, ResourceHistory, ResourceType
+    },
+    utils::format_bytes,
+    DiskData, ResourceHistory, ResourceType,
 };
 
 use super::{
@@ -309,7 +314,9 @@ impl ResourceDetails {
 
                     if cpu_details.logical_core_charts.len() == 0 {
                         for _ in 0..logical_cpu_count {
-                            cpu_details.logical_core_charts.push(ResourceChart::new(preferences));
+                            cpu_details
+                                .logical_core_charts
+                                .push(ResourceChart::new(preferences));
                         }
                     }
 
@@ -580,6 +587,8 @@ impl ResourceDetails {
                             column!["No RAM data to display"]
                         } else {
                             column![
+                                container(memory_details.ram_chart.view(None)),
+                                seperator_background_1(),
                                 split_table_double(vec![(
                                     (
                                         text("Usage".to_string()),
@@ -599,8 +608,6 @@ impl ResourceDetails {
                                         ))
                                     )
                                 )]),
-                                seperator_background_1(),
-                                container(memory_details.ram_chart.view(None))
                             ]
                         }
                     },
@@ -617,6 +624,8 @@ impl ResourceDetails {
                             column!["No Swap data to display"]
                         } else {
                             column![
+                                container(memory_details.swap_chart.view(None)),
+                                seperator_background_1(),
                                 split_table_double(vec![(
                                     (
                                         text("Usage".to_string()),
@@ -642,8 +651,6 @@ impl ResourceDetails {
                                         ))
                                     )
                                 )]),
-                                seperator_background_1(),
-                                container(memory_details.swap_chart.view(None))
                             ]
                         }
                     },
@@ -721,9 +728,12 @@ impl ResourceDetails {
                 .width(Length::Fill)
                 .padding(padding::SECTION);
 
-                let content = column![header, scrollable(main).style(iced::theme::Scrollable::Custom(Box::new(
-                    styles::scrollable::Background1 {},
-                )))];
+                let content = column![
+                    header,
+                    scrollable(main).style(iced::theme::Scrollable::Custom(Box::new(
+                        styles::scrollable::Background1 {},
+                    )))
+                ];
 
                 let container = container(content);
                 container.into()
@@ -797,6 +807,8 @@ impl ResourceDetails {
                                     .on_toggle(ResourceDetailsMessage::ToggleLogicalCores)],
                             ),
                             column![
+                                cpu_details.cpu_chart.view(None),
+                                seperator_background_1(),
                                 split_table_double(vec![(
                                     (
                                         text(String::from("Percent used")),
@@ -807,8 +819,6 @@ impl ResourceDetails {
                                         text(format!("{:.2}Hz", cpu_details.frequency))
                                     )
                                 )]),
-                                seperator_background_1(),
-                                cpu_details.cpu_chart.view(None),
                             ],
                         )
                     }
@@ -861,9 +871,12 @@ impl ResourceDetails {
                 .width(Length::Fill)
                 .padding(padding::SECTION);
 
-                let content = column![header, scrollable(main).style(iced::theme::Scrollable::Custom(Box::new(
-                    styles::scrollable::Background1 {},
-                )))];
+                let content = column![
+                    header,
+                    scrollable(main).style(iced::theme::Scrollable::Custom(Box::new(
+                        styles::scrollable::Background1 {},
+                    )))
+                ];
 
                 let container = container(content);
                 container.into()
@@ -893,12 +906,12 @@ impl ResourceDetails {
                     ),
                     {
                         column![
+                            container(disk_details.read_chart.view(None)),
+                            seperator_background_1(),
                             split_table_single(vec![(
                                 text("Reads".to_string()),
                                 text(format!("{:.2} GB", format_bytes(disk_details.read_bytes)))
                             )]),
-                            seperator_background_1(),
-                            container(disk_details.read_chart.view(None))
                         ]
                     },
                 );
@@ -911,6 +924,8 @@ impl ResourceDetails {
                     ),
                     {
                         column![
+                            container(disk_details.written_chart.view(None)),
+                            seperator_background_1(),
                             split_table_single(vec![(
                                 text("Writes".to_string()),
                                 text(format!(
@@ -918,8 +933,6 @@ impl ResourceDetails {
                                     format_bytes(disk_details.written_bytes)
                                 ))
                             )]),
-                            seperator_background_1(),
-                            container(disk_details.written_chart.view(None))
                         ]
                     },
                 );
@@ -990,9 +1003,12 @@ impl ResourceDetails {
                 .width(Length::Fill)
                 .padding(padding::SECTION);
 
-                let content = column![header, scrollable(main).style(iced::theme::Scrollable::Custom(Box::new(
-                    styles::scrollable::Background1 {},
-                )))];
+                let content = column![
+                    header,
+                    scrollable(main).style(iced::theme::Scrollable::Custom(Box::new(
+                        styles::scrollable::Background1 {},
+                    )))
+                ];
 
                 let container = container(content);
                 container.into()
