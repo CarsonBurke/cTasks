@@ -767,6 +767,10 @@ impl ResourceDetails {
                                 for usage_percent in &cpu_details.logical_cores_usage_percents {
                                     children.push(
                                         section_box_headless(column![
+                                            cpu_details.logical_core_charts[i].view(Some(
+                                                Length::Fixed(DEFAULT_CHART_HEIGHT / 2.)
+                                            )),
+                                            seperator_background_1(),
                                             split_table_double(vec![(
                                                 (
                                                     text(String::from("Percent used")),
@@ -777,10 +781,6 @@ impl ResourceDetails {
                                                     text(format!("{:.2}Hz", cpu_details.frequency))
                                                 )
                                             )]),
-                                            seperator_background_1(),
-                                            cpu_details.logical_core_charts[i].view(Some(
-                                                Length::Fixed(DEFAULT_CHART_HEIGHT / 2.)
-                                            )),
                                         ])
                                         .max_width(
                                             sizings::MAX_MAIN_CONTENT_CHILDREN_WIDTH as f32 / 3.
