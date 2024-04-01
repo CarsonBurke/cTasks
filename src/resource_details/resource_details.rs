@@ -529,11 +529,13 @@ impl ResourceDetails {
                                     "{:.2} MB",
                                     process_details.disk_written as f64 / 1024. / 1024.
                                 ]),
-                                button(text("Kill")).on_press(
-                                    ResourceDetailsMessage::KillProcessId(process_details.id)
-                                ).style(iced::theme::Button::Custom(Box::new(
-                                    styles::button::Primary {},
-                                ))),
+                                button(text("Kill"))
+                                    .on_press(ResourceDetailsMessage::KillProcessId(
+                                        process_details.id
+                                    ))
+                                    .style(iced::theme::Button::Custom(Box::new(
+                                        styles::button::Primary {},
+                                    ))),
                             ));
 
                             i += 1;
@@ -549,7 +551,12 @@ impl ResourceDetails {
                 .width(Length::Fill)
                 .align_x(alignment::Horizontal::Center);
 
-                let content = column![header, scrollable(main)];
+                let content = column![
+                    header,
+                    scrollable(main).style(iced::theme::Scrollable::Custom(Box::new(
+                        styles::scrollable::Background1 {},
+                    )))
+                ];
 
                 let container = container(content);
                 container.into()
@@ -717,7 +724,9 @@ impl ResourceDetails {
                 .width(Length::Fill)
                 .padding(padding::SECTION);
 
-                let content = column![header, scrollable(main)];
+                let content = column![header, scrollable(main).style(iced::theme::Scrollable::Custom(Box::new(
+                    styles::scrollable::Background1 {},
+                )))];
 
                 let container = container(content);
                 container.into()
@@ -855,7 +864,9 @@ impl ResourceDetails {
                 .width(Length::Fill)
                 .padding(padding::SECTION);
 
-                let content = column![header, scrollable(main)];
+                let content = column![header, scrollable(main).style(iced::theme::Scrollable::Custom(Box::new(
+                    styles::scrollable::Background1 {},
+                )))];
 
                 let container = container(content);
                 container.into()
@@ -982,7 +993,9 @@ impl ResourceDetails {
                 .width(Length::Fill)
                 .padding(padding::SECTION);
 
-                let content = column![header, scrollable(main)];
+                let content = column![header, scrollable(main).style(iced::theme::Scrollable::Custom(Box::new(
+                    styles::scrollable::Background1 {},
+                )))];
 
                 let container = container(content);
                 container.into()
