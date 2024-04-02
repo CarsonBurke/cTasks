@@ -17,18 +17,21 @@ use crate::{
     ResourceType,
 };
 
-use super::resource_preview::{ResourcePreview, ResourcePreviewMessage};
+use super::resource_preview::{
+    ResourcePreview, ResourcePreviewDisplayState, ResourcePreviewMessage,
+};
 
 #[derive(Debug)]
 pub struct DiskPreview {
     pub resource: ResourceType,
-    pub disk_name: String,
+    pub disk_name: OsString,
     pub disk_size: u64,
     pub disk_read: u64,
     pub disk_written: u64,
     pub disk_used: u64,
     pub disk_total: u64,
     pub disk_kind: DiskKind,
+    pub display_state: ResourcePreviewDisplayState,
 }
 
 impl Default for DiskPreview {
@@ -36,12 +39,13 @@ impl Default for DiskPreview {
         Self {
             resource: ResourceType::Disk,
             disk_kind: DiskKind::Unknown(0),
-            disk_name: String::new(),
+            disk_name: OsString::new(),
             disk_size: 0,
             disk_used: 0,
             disk_read: 0,
             disk_written: 0,
             disk_total: 0,
+            display_state: ResourcePreviewDisplayState::Shown,
         }
     }
 }
@@ -54,9 +58,8 @@ impl DiskPreview {
     }
 
     pub fn on_tick(&mut self, disk: &Disk) {
-
         self.resource = ResourceType::Disk;
-        self.disk_name = disk.name().to_str().unwrap_or("no name").to_string();
+        self.disk_name = disk.name().into()/* .to_str().unwrap_or("no name").to_string() */;
         self.disk_size = disk.total_space();
         self.disk_used = self.disk_size - disk.available_space();
         self.disk_read = 0;
@@ -110,7 +113,9 @@ impl DiskPreview {
                 self.resource,
             ))
             .style(iced::theme::Button::Custom(Box::new(
-                styles::button::Background3Blended {},
+                styles::button::Background3Blended {
+                    display_as_pressed: self.display_state == ResourcePreviewDisplayState::Active,
+                },
             )));
 
         button.into()

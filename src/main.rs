@@ -45,7 +45,7 @@ use sysinfo::{
     RefreshKind, System, UpdateKind,
 };
 
-use crate::constants::HISTORY_TICKS;
+use crate::{constants::HISTORY_TICKS, resource_previews::resource_preview::ResourcePreviewDisplayState};
 
 mod constants;
 mod general_widgets;
@@ -507,8 +507,18 @@ impl Application for App {
                                 &self.preferences,
                             );
                         }
-                        AppMessage::ResourcePreviewMessage(message) => {
-                            
+                        AppMessage::ResourcePreviewMessage(preview_message) => {
+                            match preview_message {
+                                ResourcePreviewMessage::ResourceDetailsFor(key, resource_type) => {
+
+                                    if let Some(preview) = self.previews.disks.get_mut(&key) {
+                                        preview.display_state = ResourcePreviewDisplayState::Active;
+                                    };
+
+                                    self.main_content
+                                        .apply_resource_type(resource_type, &self.preferences)
+                                }
+                            }
                         }
                         _ => {}
                     }

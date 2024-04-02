@@ -88,12 +88,18 @@ impl button::StyleSheet for Primary {
     }
 }
 
-pub struct Background3Blended;
+pub struct Background3Blended {
+    pub display_as_pressed: bool,
+}
 
 impl button::StyleSheet for Background3Blended {
     type Style = iced::Theme;
 
-    fn active(&self, _: &Self::Style) -> button::Appearance {
+    fn active(&self, style: &Self::Style) -> button::Appearance {
+        if self.display_as_pressed == true {
+            return self.pressed(style);
+        }
+
         button::Appearance {
             background: Some(iced::Background::Color(custom_theme::BACKGROUND_3)),
             text_color: iced::Color::WHITE,

@@ -6,7 +6,14 @@ use crate::ResourceType;
 
 #[derive(Debug, Clone)]
 pub enum ResourcePreviewMessage {
-    ResourceDetailsFor(String, ResourceType),
+    ResourceDetailsFor(OsString, ResourceType),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ResourcePreviewDisplayState {
+    Shown,
+    Hidden,
+    Active
 }
 
 pub trait ResourcePreview<Message, OnTickParams> {
