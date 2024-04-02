@@ -36,12 +36,16 @@ use iced_aw::{
     split, BootstrapIcon, FloatingElement, NerdIcon, Spinner, NERD_FONT,
 };
 use preferences::Preferences;
-use resource_details::resource_details::{ResourceDetails, ResourceDetailsMessage};
+use resource_details::{
+    disk_details::{DiskDetails, DiskDetailsMessage},
+    resource_details::{ResourceDetails, ResourceDetailsMessage},
+};
 use resource_previews::{disk_preview::DiskPreview, resource_preview::ResourcePreviewMessage};
 use sidebar::sidebar_item::{SidebarItemParent, SidebarItemParentMessage};
 use styles::container::{main_content, sidebar};
 use sysinfo::{
-    Cpu, CpuRefreshKind, Disk, DiskKind, Disks, MemoryRefreshKind, Networks, ProcessRefreshKind, RefreshKind, System, UpdateKind
+    Cpu, CpuRefreshKind, Disk, DiskKind, Disks, MemoryRefreshKind, Networks, ProcessRefreshKind,
+    RefreshKind, System, UpdateKind,
 };
 
 use crate::{
@@ -150,9 +154,17 @@ pub struct ResourcePreviews {
     pub disks: HashMap<String, DiskPreview>,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct ResourcesDetails {
-    // pub disks: HashMap<OsString, DiskPreview>,
+    pub disks: HashMap<String, DiskDetails>,
+}
+
+impl ResourcesDetails {
+    fn new() -> Self {
+        Self {
+            disks: HashMap::new(),
+        }
+    }
 }
 
 #[derive(Debug, Default)]
@@ -161,11 +173,17 @@ pub struct ResourceData {
 }
 
 #[derive(Debug, Clone)]
+pub enum ResourceDetailsMessageNew {
+    DiskDetailsMessage(DiskDetailsMessage),
+}
+
+#[derive(Debug, Clone)]
 enum AppMessage {
     FontLoaded(Result<(), font::Error>),
     Loaded(Result<(), String>),
     SidebarItemParentMessage(usize, SidebarItemParentMessage),
     ResourceDetailsMessage(ResourceDetailsMessage),
+    ResourceDetailsMessageNew(ResourceDetailsMessageNew),
     SetResourceDetails(ResourceType),
     ResourcePreviewMessage(ResourcePreviewMessage),
     Tick,
@@ -180,7 +198,7 @@ enum AppState {
 
 pub type ActivePreview = (String, ResourceType);
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 struct App {
     sidebar_items: Vec<SidebarItemParent>,
     preferences: Preferences,
@@ -232,10 +250,12 @@ impl Application for App {
             logical_cores_frequencies.push(0);
         }
 
+        let preferences = Preferences::new();
+
         let mut new_self = Self {
             tick_interval: 1000,
             state: AppState::Loading,
-            preferences: Preferences::new(),
+            preferences: preferences,
             system_info,
             physical_cpu_count,
             logical_cpu_count,
@@ -244,7 +264,18 @@ impl Application for App {
             logical_cores_usage_percent,
             logical_cores_frequencies,
             resource_history: ResourceHistory::new(logical_cpu_count),
-            ..Default::default()
+            sidebar_items: Vec::new(),
+            main_content: ResourceDetails::new(&preferences, ResourceType::default()),
+            active_preview: ("0".to_string(), ResourceType::default()),
+            resource_data: ResourceData::default(),
+            previews: ResourcePreviews::default(),
+            resources_details: ResourcesDetails::new(),
+            disk_info: Disks::new(),
+            network_info: Networks::new(),
+            cpu_frequency: 0,
+            cpu_usage_percent: 0.,
+            ram_usage_percent: 0.,
+            swap_usage_percent: 0.,
         };
 
         // new_self.previews.disks.insert("disk 1".to_string(), DiskPreview::new());
@@ -322,9 +353,12 @@ impl Application for App {
                             // Update and construct disk data
 
                             for disk in &self.disk_info {
-                                let disk_name = disk.name().to_str().unwrap_or("default").to_string();
+                                let disk_name =
+                                    disk.name().to_str().unwrap_or("default").to_string();
 
-                                if let Some(disk_data) = self.resource_data.disks.get_mut(&disk_name) {
+                                if let Some(disk_data) =
+                                    self.resource_data.disks.get_mut(&disk_name)
+                                {
                                     update_disk_data(disk_data, &disk_name, disk);
                                     continue;
                                 };
@@ -336,19 +370,35 @@ impl Application for App {
                                 self.resource_data.disks.insert(disk_name, new_disk_data);
                             }
 
-                            // Update and construct disk previews
+                            // Update and construct disk previews and details
 
                             for (_, disk_data) in &self.resource_data.disks {
-                                if let Some(preview) = self.previews.disks.get_mut(&disk_data.name) {
+                                if let Some(details) =
+                                    self.resources_details.disks.get_mut(&disk_data.name)
+                                {
+                                    details.on_tick(disk_data);
+                                } else {
+                                    let mut new_details = DiskDetails::new(&self.preferences);
+
+                                    new_details.on_tick(disk_data);
+
+                                    self.resources_details
+                                        .disks
+                                        .insert(disk_data.name.clone(), new_details);
+                                }
+
+                                if let Some(preview) = self.previews.disks.get_mut(&disk_data.name)
+                                {
                                     preview.on_tick(disk_data);
-                                    continue;
-                                };
+                                } else {
+                                    let mut new_preview = DiskPreview::new();
 
-                                let mut new_preview = DiskPreview::new();
+                                    new_preview.on_tick(disk_data);
 
-                                new_preview.on_tick(disk_data);
-
-                                self.previews.disks.insert(disk_data.name.clone(), new_preview);
+                                    self.previews
+                                        .disks
+                                        .insert(disk_data.name.clone(), new_preview);
+                                }
                             }
 
                             // cpu usage
@@ -478,6 +528,7 @@ impl Application for App {
                                 &self.logical_cores_frequencies,
                                 &self.resource_data,
                                 &self.preferences,
+                                &self.active_preview,
                             );
                         }
                         AppMessage::ResourceDetailsMessage(resource_details_message) => {
@@ -502,6 +553,7 @@ impl Application for App {
                                         &self.logical_cores_frequencies,
                                         &self.resource_data,
                                         &self.preferences,
+                                        &self.active_preview,
                                     );
                                 }
                                 _ => {}
@@ -526,6 +578,7 @@ impl Application for App {
                                 &self.logical_cores_frequencies,
                                 &self.resource_data,
                                 &self.preferences,
+                                &self.active_preview,
                             );
                         }
                         AppMessage::ResourcePreviewMessage(preview_message) => {
@@ -535,6 +588,7 @@ impl Application for App {
                                     // if let Some(preview) = self.previews.disks.get_mut(&key) {
                                     //     preview.display_state = ResourcePreviewDisplayState::Active;
                                     // };
+
                                     self.active_preview = (key, resource);
 
                                     self.main_content
@@ -669,6 +723,30 @@ impl Application for App {
                 //     .width(Length::Fill)
                 //     .padding(padding::MAIN);
 
+                let main_new = container({
+                    let preview: Element<_> = match self.active_preview.1 {
+                        ResourceType::Disk => {
+                            let Some(details) =
+                                self.resources_details.disks.get(&self.active_preview.0)
+                            else {
+                                return text(String::from("Error: details failed to load")).into();
+                            };
+
+                            details
+                                .view()
+                                .map(move |message| {
+                                    AppMessage::ResourceDetailsMessageNew(
+                                        ResourceDetailsMessageNew::DiskDetailsMessage(message),
+                                    )
+                                })
+                                .into()
+                        }
+                        _ => text(String::from("Error: failed to match resource")).into(),
+                    };
+
+                    preview
+                }).style(main_content());
+
                 let main = container(
                     //                    Scrollable::new(
                     column![self
@@ -685,7 +763,8 @@ impl Application for App {
                 .center_x();
 
                 let left = sidebar;
-                let right = column![/* header, */ main /* footer */,].width(Length::FillPortion(3));
+                let right = column![/* header, */ main_new, main /* footer */,]
+                    .width(Length::FillPortion(3));
 
                 let container = container(
                     FloatingElement::new(row![left, right], floating_content)
@@ -743,7 +822,6 @@ pub enum ResourceType {
 }
 
 pub fn update_disk_data(disk_data: &mut DiskData, disk_name: &String, disk: &Disk) {
-
     disk_data.name = disk_name.clone();
     disk_data.space_total = disk.total_space();
     disk_data.space_used = disk_data.space_total - disk.available_space();

@@ -25,7 +25,7 @@ pub mod sizings {
     pub const DEFAULT_CHART_HEIGHT: f32 = 300.;
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Copy, Clone)]
 pub enum DisplayState {
     #[default]
     Shown,

@@ -22,24 +22,29 @@ use crate::{
         custom_theme, font_sizes, padding,
         sizings::{self, DEFAULT_CHART_HEIGHT},
         HISTORY_TICKS,
-    }, general_widgets::{
+    },
+    general_widgets::{
         icons::bootstrap_icon,
         section::{section, section_box, section_box_headless},
         seperators::seperator_background_1,
         split_table_double::split_table_double,
         split_table_single::split_table_single,
-    }, preferences::Preferences, styles::{
+    },
+    preferences::Preferences,
+    styles::{
         self,
         container::{
             alternate_process_grid_row, divider_background_1, primary_process_grid_row,
             resource_details_child, resource_details_header,
         },
-    }, utils::format_bytes, DiskData, ResourceData, ResourceHistory, ResourceType
+    },
+    utils::format_bytes,
+    ActivePreview, DiskData, ResourceData, ResourceHistory, ResourceType,
 };
 
 use super::{
     applications_details::{ApplicationsDetails, ApplicationsDetailsMessage},
-    chart::ResourceChart,
+    chart::{ResourceChart, ResourceChartMessage},
     memory_detail::{self, MemoryDetails, MemoryDetailsMessage},
 };
 
@@ -133,6 +138,7 @@ pub enum ResourceDetailsMessage {
     SwitchSortDirection,
     ChangeSwapiness,
     ToggleLogicalCores(bool),
+    ResourceChartMessage(ResourceChartMessage),
 }
 
 // pub type ResourceDetailsElements = MemoryDetails & ApplicationsDetails;
@@ -213,6 +219,7 @@ impl ResourceDetails {
         logical_cores_frequencies: &Vec<u64>,
         resource_data: &ResourceData,
         preferences: &Preferences,
+        active_preview: &ActivePreview,
     ) {
         match self.resource {
             ResourceType::Applications => {}
@@ -338,16 +345,18 @@ impl ResourceDetails {
                         continue;
                     };
 
-                    // let disk_data = resource_data.disks.;
+                    let Some(disk_data) = resource_data.disks.get(&active_preview.0) else {
+                        continue;
+                    };
 
                     // We should not be initializing here.
 
-                    disk_details.read_bytes = disk_details.read_bytes;
-                    disk_details.written_bytes = disk_details.written_bytes;
-                    disk_details.total_space = disk_details.total_space;
-                    disk_details.total_used = disk_details.total_used;
-                    disk_details.is_removable = disk_details.is_removable;
-                    disk_details.kind = disk_details.kind;
+                    disk_details.read_bytes = disk_data.read;
+                    disk_details.written_bytes = disk_data.written;
+                    disk_details.total_space = disk_data.space_total;
+                    disk_details.total_used = disk_data.space_used;
+                    disk_details.is_removable = disk_data.is_removable;
+                    disk_details.kind = disk_data.kind;
                     disk_details.written_chart = ResourceChart::new(preferences);
                     disk_details.read_chart = ResourceChart::new(preferences);
                 }
@@ -584,7 +593,7 @@ impl ResourceDetails {
                             column!["No RAM data to display"]
                         } else {
                             column![
-                                container(memory_details.ram_chart.view(None)),
+                                container(memory_details.ram_chart.view(None).map(move |message| ResourceDetailsMessage::ResourceChartMessage(message))),
                                 seperator_background_1(),
                                 split_table_double(vec![(
                                     (
@@ -621,7 +630,7 @@ impl ResourceDetails {
                             column!["No Swap data to display"]
                         } else {
                             column![
-                                container(memory_details.swap_chart.view(None)),
+                                container(memory_details.swap_chart.view(None).map(move |message| ResourceDetailsMessage::ResourceChartMessage(message))),
                                 seperator_background_1(),
                                 split_table_double(vec![(
                                     (
@@ -717,9 +726,15 @@ impl ResourceDetails {
                 .spacing(padding::PORTION);
 
                 let main = container(
-                    column![ram_details, swap_details, thermals, about, advanced]
-                        .spacing(20)
-                        .align_items(alignment::Alignment::Center),
+                    column![
+                        ram_details,
+                        swap_details,
+                        thermals,
+                        about,
+                        advanced
+                    ]
+                    .spacing(20)
+                    .align_items(alignment::Alignment::Center),
                 )
                 .center_x()
                 .width(Length::Fill)
@@ -766,7 +781,7 @@ impl ResourceDetails {
                                         section_box_headless(column![
                                             cpu_details.logical_core_charts[i].view(Some(
                                                 Length::Fixed(DEFAULT_CHART_HEIGHT / 2.)
-                                            )),
+                                            )).map(move |message| ResourceDetailsMessage::ResourceChartMessage(message)),
                                             seperator_background_1(),
                                             split_table_double(vec![(
                                                 (
@@ -804,7 +819,7 @@ impl ResourceDetails {
                                     .on_toggle(ResourceDetailsMessage::ToggleLogicalCores)],
                             ),
                             column![
-                                cpu_details.cpu_chart.view(None),
+                                cpu_details.cpu_chart.view(None).map(move |message| ResourceDetailsMessage::ResourceChartMessage(message)),
                                 seperator_background_1(),
                                 split_table_double(vec![(
                                     (
@@ -903,7 +918,7 @@ impl ResourceDetails {
                     ),
                     {
                         column![
-                            container(disk_details.read_chart.view(None)),
+                            container(disk_details.read_chart.view(None).map(move |message| ResourceDetailsMessage::ResourceChartMessage(message))),
                             seperator_background_1(),
                             split_table_single(vec![(
                                 text("Reads".to_string()),
@@ -921,7 +936,7 @@ impl ResourceDetails {
                     ),
                     {
                         column![
-                            container(disk_details.written_chart.view(None)),
+                            container(disk_details.written_chart.view(None).map(move |message| ResourceDetailsMessage::ResourceChartMessage(message))),
                             seperator_background_1(),
                             split_table_single(vec![(
                                 text("Writes".to_string()),

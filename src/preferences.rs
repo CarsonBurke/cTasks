@@ -1,6 +1,6 @@
 use crate::constants::DisplayState;
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct Preferences {
     display_state: DisplayState,
     percent_precision: u8,

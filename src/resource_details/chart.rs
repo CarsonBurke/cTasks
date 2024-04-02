@@ -14,7 +14,10 @@ use crate::{
 
 use super::resource_details::ResourceDetailsMessage;
 
-struct ResourceChartMessage {}
+#[derive(Debug, Clone, Copy)]
+pub enum ResourceChartMessage {
+
+}
 
 #[derive(Debug, Default)]
 pub struct ResourceChart {
@@ -24,7 +27,7 @@ pub struct ResourceChart {
     chart_y_axis_major_grid_lines: usize,
 }
 
-impl Chart<ResourceDetailsMessage> for ResourceChart {
+impl Chart<ResourceChartMessage> for ResourceChart {
     type State = ();
 
     fn build_chart<DB: DrawingBackend>(&self, state: &Self::State, mut builder: ChartBuilder<DB>) {
@@ -138,7 +141,7 @@ impl ResourceChart {
 
     pub fn set_data() {}
 
-    pub fn view(&self, height: Option<Length>) -> Element<ResourceDetailsMessage> {
+    pub fn view(&self, height: Option<Length>) -> Element<ResourceChartMessage> {
         ChartWidget::new(self)
             // .width(Length::Fixed(600.))
             .height(height.unwrap_or(Length::Fixed(DEFAULT_CHART_HEIGHT)))
