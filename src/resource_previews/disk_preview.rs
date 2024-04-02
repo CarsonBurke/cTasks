@@ -9,7 +9,7 @@ use iced_aw::BootstrapIcon;
 use sysinfo::{Disk, DiskKind};
 
 use crate::{
-    constants::{custom_theme, font_sizes, padding}, general_widgets::icons::bootstrap_icon, resource_details::resource_details::ResourceDetailsMessage, styles, utils::format_bytes, DiskData, ResourceType
+    constants::{custom_theme, font_sizes, padding}, general_widgets::icons::bootstrap_icon, resource_details::resource_details::ResourceDetailsMessage, styles, utils::format_bytes, ActivePreview, DiskData, ResourceType
 };
 
 use super::resource_preview::{
@@ -19,7 +19,7 @@ use super::resource_preview::{
 #[derive(Debug)]
 pub struct DiskPreview {
     pub resource: ResourceType,
-    pub disk_name: OsString,
+    pub disk_name: String,
     pub disk_size: u64,
     pub disk_read: u64,
     pub disk_written: u64,
@@ -34,7 +34,7 @@ impl Default for DiskPreview {
         Self {
             resource: ResourceType::Disk,
             disk_kind: DiskKind::Unknown(0),
-            disk_name: OsString::new(),
+            disk_name: String::new(),
             disk_size: 0,
             disk_used: 0,
             disk_read: 0,
@@ -62,7 +62,7 @@ impl DiskPreview {
         self.disk_kind = disk_data.kind;
     }
 
-    pub fn view(&self) -> Element<ResourcePreviewMessage> {
+    pub fn view(&self, active_preview: &ActivePreview) -> Element<ResourcePreviewMessage> {
         let content = column![
             row![
                 bootstrap_icon(BootstrapIcon::Hdd).size(font_sizes::H2),
@@ -109,7 +109,7 @@ impl DiskPreview {
             ))
             .style(iced::theme::Button::Custom(Box::new(
                 styles::button::Background3Blended {
-                    display_as_pressed: self.display_state == ResourcePreviewDisplayState::Active,
+                    display_as_pressed: active_preview.0 == self.disk_name && active_preview.1 == self.resource,
                 },
             )));
 

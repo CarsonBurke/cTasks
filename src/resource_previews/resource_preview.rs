@@ -6,7 +6,7 @@ use crate::ResourceType;
 
 #[derive(Debug, Clone)]
 pub enum ResourcePreviewMessage {
-    ResourceDetailsFor(OsString, ResourceType),
+    ResourceDetailsFor(String, ResourceType),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

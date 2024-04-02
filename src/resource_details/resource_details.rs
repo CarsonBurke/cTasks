@@ -338,6 +338,8 @@ impl ResourceDetails {
                         continue;
                     };
 
+                    // let disk_data = resource_data.disks.;
+
                     // We should not be initializing here.
 
                     disk_details.read_bytes = disk_details.read_bytes;

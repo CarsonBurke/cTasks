@@ -126,7 +126,7 @@ pub struct DiskData {
     pub written: u64,
     pub is_removable: bool,
     pub kind: DiskKind,
-    pub name: OsString,
+    pub name: String,
     pub space_total: u64,
     pub space_used: u64,
 }
@@ -134,7 +134,7 @@ pub struct DiskData {
 impl Default for DiskData {
     fn default() -> Self {
         Self {
-            name: OsString::new(),
+            name: String::new(),
             read: 0,
             written: 0,
             space_total: 0,
@@ -147,7 +147,7 @@ impl Default for DiskData {
 
 #[derive(Debug, Default)]
 pub struct ResourcePreviews {
-    pub disks: HashMap<OsString, DiskPreview>,
+    pub disks: HashMap<String, DiskPreview>,
 }
 
 #[derive(Debug, Default)]
@@ -157,7 +157,7 @@ pub struct ResourcesDetails {
 
 #[derive(Debug, Default)]
 pub struct ResourceData {
-    pub disks: HashMap<OsString, DiskData>,
+    pub disks: HashMap<String, DiskData>,
 }
 
 #[derive(Debug, Clone)]
@@ -177,6 +177,8 @@ enum AppState {
     Loading,
     Loaded,
 }
+
+pub type ActivePreview = (String, ResourceType);
 
 #[derive(Debug, Default)]
 struct App {
@@ -202,6 +204,7 @@ struct App {
     resource_data: ResourceData,
     previews: ResourcePreviews,
     resources_details: ResourcesDetails,
+    active_preview: ActivePreview,
 }
 
 async fn load() -> Result<(), String> {
@@ -319,18 +322,18 @@ impl Application for App {
                             // Update and construct disk data
 
                             for disk in &self.disk_info {
-                                let disk_name = disk.name();
+                                let disk_name = disk.name().to_str().unwrap_or("default").to_string();
 
-                                if let Some(disk_data) = self.resource_data.disks.get_mut(disk_name) {
-                                    update_disk_data(disk_data, disk);
+                                if let Some(disk_data) = self.resource_data.disks.get_mut(&disk_name) {
+                                    update_disk_data(disk_data, &disk_name, disk);
                                     continue;
                                 };
 
                                 let mut new_disk_data = DiskData::default();
 
-                                update_disk_data(&mut new_disk_data, disk);
+                                update_disk_data(&mut new_disk_data, &disk_name, disk);
 
-                                self.resource_data.disks.insert(disk_name.into(), new_disk_data);
+                                self.resource_data.disks.insert(disk_name, new_disk_data);
                             }
 
                             // Update and construct disk previews
@@ -527,14 +530,15 @@ impl Application for App {
                         }
                         AppMessage::ResourcePreviewMessage(preview_message) => {
                             match preview_message {
-                                ResourcePreviewMessage::ResourceDetailsFor(key, resource_type) => {
+                                ResourcePreviewMessage::ResourceDetailsFor(key, resource) => {
                                     // We also need a way to toggle this off, ideally not being super complicated
                                     // if let Some(preview) = self.previews.disks.get_mut(&key) {
                                     //     preview.display_state = ResourcePreviewDisplayState::Active;
                                     // };
+                                    self.active_preview = (key, resource);
 
                                     self.main_content
-                                        .apply_resource_type(resource_type, &self.preferences)
+                                        .apply_resource_type(resource, &self.preferences)
                                 }
                             }
                         }
@@ -556,7 +560,7 @@ impl Application for App {
         match self.state {
             AppState::Loading => {
                 let spinner = Spinner::new();
-                let loading = column![spinner];
+                let loading = column![text(String::from("Loading App")), spinner];
 
                 container(loading)
                     .width(Length::Fill)
@@ -619,7 +623,7 @@ impl Application for App {
                     for (_, disk_preview) in &self.previews.disks {
                         children.push(
                             disk_preview
-                                .view()
+                                .view(&self.active_preview)
                                 .map(|message| AppMessage::ResourcePreviewMessage(message)),
                         );
                     }
@@ -738,9 +742,9 @@ pub enum ResourceType {
     Ethernet,
 }
 
-pub fn update_disk_data(disk_data: &mut DiskData, disk: &Disk) {
+pub fn update_disk_data(disk_data: &mut DiskData, disk_name: &String, disk: &Disk) {
 
-    disk_data.name = disk.name().into();
+    disk_data.name = disk_name.clone();
     disk_data.space_total = disk.total_space();
     disk_data.space_used = disk_data.space_total - disk.available_space();
     disk_data.read = 0;
