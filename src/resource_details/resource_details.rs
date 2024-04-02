@@ -22,24 +22,19 @@ use crate::{
         custom_theme, font_sizes, padding,
         sizings::{self, DEFAULT_CHART_HEIGHT},
         HISTORY_TICKS,
-    },
-    general_widgets::{
+    }, general_widgets::{
         icons::bootstrap_icon,
         section::{section, section_box, section_box_headless},
         seperators::seperator_background_1,
         split_table_double::split_table_double,
         split_table_single::split_table_single,
-    },
-    preferences::Preferences,
-    styles::{
+    }, preferences::Preferences, styles::{
         self,
         container::{
             alternate_process_grid_row, divider_background_1, primary_process_grid_row,
             resource_details_child, resource_details_header,
         },
-    },
-    utils::format_bytes,
-    DiskData, ResourceHistory, ResourceType,
+    }, utils::format_bytes, DiskData, ResourceData, ResourceHistory, ResourceType
 };
 
 use super::{
@@ -216,7 +211,7 @@ impl ResourceDetails {
         resource_history: &ResourceHistory,
         logical_core_usage_percent: &Vec<f32>,
         logical_cores_frequencies: &Vec<u64>,
-        disk_data: &Vec<DiskData>,
+        resource_data: &ResourceData,
         preferences: &Preferences,
     ) {
         match self.resource {

@@ -9,12 +9,7 @@ use iced_aw::BootstrapIcon;
 use sysinfo::{Disk, DiskKind};
 
 use crate::{
-    constants::{custom_theme, font_sizes, padding},
-    general_widgets::icons::bootstrap_icon,
-    resource_details::resource_details::ResourceDetailsMessage,
-    styles,
-    utils::format_bytes,
-    ResourceType,
+    constants::{custom_theme, font_sizes, padding}, general_widgets::icons::bootstrap_icon, resource_details::resource_details::ResourceDetailsMessage, styles, utils::format_bytes, DiskData, ResourceType
 };
 
 use super::resource_preview::{
@@ -57,14 +52,14 @@ impl DiskPreview {
         }
     }
 
-    pub fn on_tick(&mut self, disk: &Disk) {
-        self.resource = ResourceType::Disk;
-        self.disk_name = disk.name().into()/* .to_str().unwrap_or("no name").to_string() */;
-        self.disk_size = disk.total_space();
-        self.disk_used = self.disk_size - disk.available_space();
-        self.disk_read = 0;
-        self.disk_written = 0;
-        self.disk_kind = disk.kind();
+    pub fn on_tick(&mut self, disk_data: &DiskData) {
+
+        self.disk_name = disk_data.name.clone()/* .to_str().unwrap_or("no name").to_string() */;
+        self.disk_size = disk_data.space_total;
+        self.disk_used = disk_data.space_used;
+        self.disk_read = disk_data.read;
+        self.disk_written = disk_data.written;
+        self.disk_kind = disk_data.kind;
     }
 
     pub fn view(&self) -> Element<ResourcePreviewMessage> {

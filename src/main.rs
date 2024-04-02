@@ -41,11 +41,12 @@ use resource_previews::{disk_preview::DiskPreview, resource_preview::ResourcePre
 use sidebar::sidebar_item::{SidebarItemParent, SidebarItemParentMessage};
 use styles::container::{main_content, sidebar};
 use sysinfo::{
-    Cpu, CpuRefreshKind, DiskKind, Disks, MemoryRefreshKind, Networks, ProcessRefreshKind,
-    RefreshKind, System, UpdateKind,
+    Cpu, CpuRefreshKind, Disk, DiskKind, Disks, MemoryRefreshKind, Networks, ProcessRefreshKind, RefreshKind, System, UpdateKind
 };
 
-use crate::{constants::HISTORY_TICKS, resource_previews::resource_preview::ResourcePreviewDisplayState};
+use crate::{
+    constants::HISTORY_TICKS, resource_previews::resource_preview::ResourcePreviewDisplayState,
+};
 
 mod constants;
 mod general_widgets;
@@ -121,23 +122,23 @@ impl ResourceHistory {
 
 #[derive(Debug)]
 pub struct DiskData {
-    id: u32,
-    read_bytes: u64,
-    written_bytes: u64,
-    total_space: u64,
-    total_used: u64,
-    is_removable: bool,
-    kind: DiskKind,
+    pub read: u64,
+    pub written: u64,
+    pub is_removable: bool,
+    pub kind: DiskKind,
+    pub name: OsString,
+    pub space_total: u64,
+    pub space_used: u64,
 }
 
 impl Default for DiskData {
     fn default() -> Self {
         Self {
-            id: 0,
-            read_bytes: 0,
-            written_bytes: 0,
-            total_space: 0,
-            total_used: 0,
+            name: OsString::new(),
+            read: 0,
+            written: 0,
+            space_total: 0,
+            space_used: 0,
             is_removable: false,
             kind: DiskKind::Unknown(0),
         }
@@ -152,6 +153,11 @@ pub struct ResourcePreviews {
 #[derive(Debug, Default)]
 pub struct ResourcesDetails {
     // pub disks: HashMap<OsString, DiskPreview>,
+}
+
+#[derive(Debug, Default)]
+pub struct ResourceData {
+    pub disks: HashMap<OsString, DiskData>,
 }
 
 #[derive(Debug, Clone)]
@@ -193,7 +199,7 @@ struct App {
     logical_cores_usage_percent: Vec<f32>,
     logical_cores_frequencies: Vec<u64>,
     resource_history: ResourceHistory,
-    disk_data: Vec<DiskData>,
+    resource_data: ResourceData,
     previews: ResourcePreviews,
     resources_details: ResourcesDetails,
 }
@@ -310,24 +316,36 @@ impl Application for App {
                             self.disk_info = Disks::new_with_refreshed_list();
                             self.network_info = Networks::new_with_refreshed_list();
 
-                            let disk_count = self.disk_info.len();
-                            if disk_count > self.disk_data.len() {
-                                self.disk_data.push(DiskData {
-                                    ..Default::default()
-                                })
-                            }
+                            // Update and construct disk data
 
                             for disk in &self.disk_info {
-                                if let Some(preview) = self.previews.disks.get_mut(disk.name()) {
-                                    preview.on_tick(disk);
+                                let disk_name = disk.name();
+
+                                if let Some(disk_data) = self.resource_data.disks.get_mut(disk_name) {
+                                    update_disk_data(disk_data, disk);
+                                    continue;
+                                };
+
+                                let mut new_disk_data = DiskData::default();
+
+                                update_disk_data(&mut new_disk_data, disk);
+
+                                self.resource_data.disks.insert(disk_name.into(), new_disk_data);
+                            }
+
+                            // Update and construct disk previews
+
+                            for (_, disk_data) in &self.resource_data.disks {
+                                if let Some(preview) = self.previews.disks.get_mut(&disk_data.name) {
+                                    preview.on_tick(disk_data);
                                     continue;
                                 };
 
                                 let mut new_preview = DiskPreview::new();
 
-                                new_preview.on_tick(disk);
+                                new_preview.on_tick(disk_data);
 
-                                self.previews.disks.insert(disk.name().into(), new_preview);
+                                self.previews.disks.insert(disk_data.name.clone(), new_preview);
                             }
 
                             // cpu usage
@@ -455,7 +473,7 @@ impl Application for App {
                                 &self.resource_history,
                                 &self.logical_cores_usage_percent,
                                 &self.logical_cores_frequencies,
-                                &self.disk_data,
+                                &self.resource_data,
                                 &self.preferences,
                             );
                         }
@@ -479,7 +497,7 @@ impl Application for App {
                                         &self.resource_history,
                                         &self.logical_cores_usage_percent,
                                         &self.logical_cores_frequencies,
-                                        &self.disk_data,
+                                        &self.resource_data,
                                         &self.preferences,
                                     );
                                 }
@@ -503,17 +521,17 @@ impl Application for App {
                                 &self.resource_history,
                                 &self.logical_cores_usage_percent,
                                 &self.logical_cores_frequencies,
-                                &self.disk_data,
+                                &self.resource_data,
                                 &self.preferences,
                             );
                         }
                         AppMessage::ResourcePreviewMessage(preview_message) => {
                             match preview_message {
                                 ResourcePreviewMessage::ResourceDetailsFor(key, resource_type) => {
-
-                                    if let Some(preview) = self.previews.disks.get_mut(&key) {
-                                        preview.display_state = ResourcePreviewDisplayState::Active;
-                                    };
+                                    // We also need a way to toggle this off, ideally not being super complicated
+                                    // if let Some(preview) = self.previews.disks.get_mut(&key) {
+                                    //     preview.display_state = ResourcePreviewDisplayState::Active;
+                                    // };
 
                                     self.main_content
                                         .apply_resource_type(resource_type, &self.preferences)
@@ -718,4 +736,15 @@ pub enum ResourceType {
     Disk,
     Wifi,
     Ethernet,
+}
+
+pub fn update_disk_data(disk_data: &mut DiskData, disk: &Disk) {
+
+    disk_data.name = disk.name().into();
+    disk_data.space_total = disk.total_space();
+    disk_data.space_used = disk_data.space_total - disk.available_space();
+    disk_data.read = 0;
+    disk_data.written = 0;
+    disk_data.kind = disk.kind();
+    disk_data.is_removable = disk.is_removable();
 }
