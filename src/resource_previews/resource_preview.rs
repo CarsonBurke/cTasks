@@ -1,10 +1,12 @@
+use std::ffi::OsString;
+
 use iced::Element;
 
 use crate::ResourceType;
 
 #[derive(Debug, Clone)]
 pub enum ResourcePreviewMessage {
-    ResourceDetailsFor(usize, ResourceType),
+    ResourceDetailsFor(OsString, ResourceType),
 }
 
 pub trait ResourcePreview<Message, OnTickParams> {

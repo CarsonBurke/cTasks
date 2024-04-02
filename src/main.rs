@@ -1,6 +1,7 @@
 use std::{
     collections::{HashMap, VecDeque},
     env,
+    ffi::OsString,
     time::Duration,
 };
 
@@ -48,12 +49,12 @@ use crate::constants::HISTORY_TICKS;
 
 mod constants;
 mod general_widgets;
+mod preferences;
 mod resource_details;
 mod resource_previews;
 mod sidebar;
 mod styles;
 mod utils;
-mod preferences;
 
 pub fn main() -> iced::Result {
     // let image = Image::load_from_memory(ICON).unwrap();
@@ -145,12 +146,12 @@ impl Default for DiskData {
 
 #[derive(Debug, Default)]
 pub struct ResourcePreviews {
-    pub disks: HashMap<u32, DiskPreview>,
+    pub disks: HashMap<OsString, DiskPreview>,
 }
 
 #[derive(Debug, Default)]
 pub struct ResourcesDetails {
-    // pub disks: HashMap<u32, DiskPreview>,
+    // pub disks: HashMap<OsString, DiskPreview>,
 }
 
 #[derive(Debug, Clone)]
@@ -193,10 +194,8 @@ struct App {
     logical_cores_frequencies: Vec<u64>,
     resource_history: ResourceHistory,
     disk_data: Vec<DiskData>,
-    disk_index: usize,
     previews: ResourcePreviews,
     resources_details: ResourcesDetails,
-    disk_names_by_id: HashMap<u32, String>, // track_logical_cores: bool,
 }
 
 async fn load() -> Result<(), String> {
@@ -239,7 +238,7 @@ impl Application for App {
             ..Default::default()
         };
 
-        new_self.previews.disks.insert(0, DiskPreview::new());
+        // new_self.previews.disks.insert("disk 1".to_string(), DiskPreview::new());
 
         let command = Command::batch(vec![
             // font::load(iced_aw::NERD_FONT_BYTES).map(Message::FontLoaded),
@@ -276,7 +275,8 @@ impl Application for App {
                     ];
                     self.state = AppState::Loaded;
 
-                    self.main_content = ResourceDetails::new(&self.preferences, ResourceType::Processes);
+                    self.main_content =
+                        ResourceDetails::new(&self.preferences, ResourceType::Processes);
                 }
                 AppMessage::Loaded(Err(_)) => {
                     println!("loading failure");
@@ -317,7 +317,18 @@ impl Application for App {
                                 })
                             }
 
-                            for disk in &self.disk_info {}
+                            for disk in &self.disk_info {
+                                if let Some(preview) = self.previews.disks.get_mut(disk.name()) {
+                                    preview.on_tick(disk);
+                                    continue;
+                                };
+
+                                let mut new_preview = DiskPreview::new();
+
+                                new_preview.on_tick(disk);
+
+                                self.previews.disks.insert(disk.name().into(), new_preview);
+                            }
 
                             // cpu usage
 
@@ -480,7 +491,8 @@ impl Application for App {
                                 return;
                             }
 
-                            self.main_content.apply_resource_type(resource, &self.preferences);
+                            self.main_content
+                                .apply_resource_type(resource, &self.preferences);
                             self.main_content.on_tick(
                                 &mut self.system_info,
                                 self.cpu_usage_percent,

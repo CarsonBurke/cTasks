@@ -1,9 +1,12 @@
+use std::ffi::OsString;
+
 use iced::{
     theme,
     widget::{button, column, container, progress_bar, row, text},
     Element, Length,
 };
 use iced_aw::BootstrapIcon;
+use sysinfo::{Disk, DiskKind};
 
 use crate::{
     constants::{custom_theme, font_sizes, padding},
@@ -16,29 +19,50 @@ use crate::{
 
 use super::resource_preview::{ResourcePreview, ResourcePreviewMessage};
 
-pub struct DiskPreviewOnTickParams {}
-
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct DiskPreview {
-    resource: ResourceType,
-    disk_id: usize,
-    disk_name: String,
-    disk_size: u64,
-    disk_read: u64,
-    disk_written: u64,
-    disk_used: u64,
-    disk_total: u64,
+    pub resource: ResourceType,
+    pub disk_name: OsString,
+    pub disk_size: u64,
+    pub disk_read: u64,
+    pub disk_written: u64,
+    pub disk_used: u64,
+    pub disk_total: u64,
+    pub disk_kind: DiskKind,
+}
+
+impl Default for DiskPreview {
+    fn default() -> Self {
+        Self {
+            resource: ResourceType::Disk,
+            disk_kind: DiskKind::Unknown(0),
+            disk_name: OsString::new(),
+            disk_size: 0,
+            disk_used: 0,
+            disk_read: 0,
+            disk_written: 0,
+            disk_total: 0,
+        }
+    }
 }
 
 impl DiskPreview {
     pub fn new() -> Self {
         Self {
-            resource: ResourceType::Disk,
             ..Default::default()
         }
     }
 
-    fn on_tick(&mut self, params: DiskPreviewOnTickParams) {}
+    pub fn on_tick(&mut self, disk: &Disk) {
+
+        self.resource = ResourceType::Disk;
+        self.disk_name = disk.name().into();
+        self.disk_size = disk.total_space();
+        self.disk_used = self.disk_size - disk.available_space();
+        self.disk_read = 0;
+        self.disk_written = 0;
+        self.disk_kind = disk.kind();
+    }
 
     pub fn view(&self) -> Element<ResourcePreviewMessage> {
         let content = column![
@@ -47,7 +71,7 @@ impl DiskPreview {
                 text(format!(
                     "{} {}",
                     format_bytes(self.disk_size),
-                    self.disk_name
+                    self.disk_kind
                 ))
                 .size(font_sizes::H2),
             ]
@@ -82,7 +106,7 @@ impl DiskPreview {
 
         let button = button(content)
             .on_press(ResourcePreviewMessage::ResourceDetailsFor(
-                self.disk_id,
+                self.disk_name.clone(),
                 self.resource,
             ))
             .style(iced::theme::Button::Custom(Box::new(
