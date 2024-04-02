@@ -507,6 +507,9 @@ impl Application for App {
                                 &self.preferences,
                             );
                         }
+                        AppMessage::ResourcePreviewMessage(message) => {
+                            
+                        }
                         _ => {}
                     }
                 })();
@@ -583,7 +586,7 @@ impl Application for App {
                 };
 
                 let sidebar_content_new = Column::with_children({
-                    let mut children/* : Vec<Element<_>> */ = Vec::new();
+                    let mut children = Vec::new();
 
                     for (_, disk_preview) in &self.previews.disks {
                         children.push(
@@ -592,12 +595,9 @@ impl Application for App {
                                 .map(|message| AppMessage::ResourcePreviewMessage(message)),
                         );
                     }
-                    // children.push(DiskPreview::new().view());
 
                     children
                 });
-
-                // let content: Element<_> = keyed_column().into();
 
                 let sidebar = container(
                     column![sidebar_header, sidebar_content, sidebar_content_new].spacing(20),

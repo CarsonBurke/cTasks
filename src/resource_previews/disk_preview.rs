@@ -22,7 +22,7 @@ use super::resource_preview::{ResourcePreview, ResourcePreviewMessage};
 #[derive(Debug)]
 pub struct DiskPreview {
     pub resource: ResourceType,
-    pub disk_name: OsString,
+    pub disk_name: String,
     pub disk_size: u64,
     pub disk_read: u64,
     pub disk_written: u64,
@@ -36,7 +36,7 @@ impl Default for DiskPreview {
         Self {
             resource: ResourceType::Disk,
             disk_kind: DiskKind::Unknown(0),
-            disk_name: OsString::new(),
+            disk_name: String::new(),
             disk_size: 0,
             disk_used: 0,
             disk_read: 0,
@@ -56,7 +56,7 @@ impl DiskPreview {
     pub fn on_tick(&mut self, disk: &Disk) {
 
         self.resource = ResourceType::Disk;
-        self.disk_name = disk.name().into();
+        self.disk_name = disk.name().to_str().unwrap_or("no name").to_string();
         self.disk_size = disk.total_space();
         self.disk_used = self.disk_size - disk.available_space();
         self.disk_read = 0;
