@@ -68,7 +68,7 @@ impl DiskPreview {
                 bootstrap_icon(BootstrapIcon::Hdd).size(font_sizes::H2),
                 text(format!(
                     "{} {}",
-                    format_bytes(self.disk_size),
+                    format_bytes(self.disk_size as f32),
                     self.disk_kind
                 ))
                 .size(font_sizes::H2),
@@ -79,7 +79,7 @@ impl DiskPreview {
                     bootstrap_icon(BootstrapIcon::Eye)
                         .style(theme::Text::Color(custom_theme::GREY_TEXT))
                         .size(font_sizes::H4),
-                    text(format_bytes(self.disk_read))
+                    text(format_bytes(self.disk_read as f32))
                         .style(theme::Text::Color(custom_theme::GREY_TEXT))
                         .size(font_sizes::H4)
                 ]
@@ -88,7 +88,7 @@ impl DiskPreview {
                     bootstrap_icon(BootstrapIcon::Pen)
                         .style(theme::Text::Color(custom_theme::GREY_TEXT))
                         .size(font_sizes::H4),
-                    text(format_bytes(self.disk_written))
+                    text(format_bytes(self.disk_written as f32))
                         .style(theme::Text::Color(custom_theme::GREY_TEXT))
                         .size(font_sizes::H4)
                 ]

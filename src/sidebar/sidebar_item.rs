@@ -61,32 +61,7 @@ impl SidebarItemParent {
             }
             ResourceType::Gpu => (None, None),
             ResourceType::Disk => {
-                let mut total_read = 0;
-                let mut total_written = 0;
-
-                /* for disk in disk_info {
-                    disk.
-                    total_read += disk.name().
-                }
-
-                system_info. */
-
-                // for disk in disk_info {
-                //     total_read += disk.total_space();
-                //     total_written += disk.available_space();
-                // }
-
-                for (pid, process) in system_info.processes() {
-                    let disk_usage = process.disk_usage();
-
-                    total_read += disk_usage.read_bytes;
-                    total_written += disk_usage.written_bytes;
-                }
-
-                (
-                    None,
-                    Some(format!("{} {}", format_bytes(total_read), format_bytes(total_written))),
-                )
+                (None, None)
             }
             ResourceType::Wifi => {
                 let mut total_received = 0;

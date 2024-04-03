@@ -102,7 +102,7 @@ impl DiskDetails {
                     seperator_background_1(),
                     split_table_single(vec![(
                         text("Reads".to_string()),
-                        text(format!("{:.2} GB", format_bytes(self.read)))
+                        text(format_bytes(self.read as f32))
                     )]),
                 ]
             },
@@ -124,7 +124,7 @@ impl DiskDetails {
                     seperator_background_1(),
                     split_table_single(vec![(
                         text("Writes".to_string()),
-                        text(format!("{:.2} GB", format_bytes(self.written)))
+                        text(format_bytes(self.written as f32))
                     )]),
                 ]
             },
@@ -171,7 +171,7 @@ impl DiskDetails {
                     (text(String::from("Brand")), text(String::from("Unknown"))),
                     (text(String::from("Kind")), text(format!("{}", self.kind))),
                     (
-                        text(String::from("Is removable")),
+                        text(String::from("Removable")),
                         text(format!("{}", self.is_removable))
                     ),
                 ])

@@ -206,7 +206,7 @@ struct App {
     tick_interval: u64,
     system_info: System,
     physical_cpu_count: u32,
-    logical_cpu_count: u32,
+    logical_core_count: u32,
     cpu_brand: String,
     cpu_frequency: u64,
     disk_info: Disks,
@@ -258,7 +258,7 @@ impl Application for App {
             preferences: preferences,
             system_info,
             physical_cpu_count,
-            logical_cpu_count,
+            logical_core_count: logical_cpu_count,
             tick: 0,
             cpu_brand,
             logical_cores_usage_percent,
@@ -406,6 +406,7 @@ impl Application for App {
                             let cpus = self.system_info.cpus();
                             // Relative to the number of logical cores. So 200% means 2 cores fully used
                             let mut total_used: f32 = 0.;
+                            let mut total_frequency: u64 = 0;
 
                             for (index, cpu) in cpus.iter().enumerate() {
                                 let cpu_usage = cpu.cpu_usage();
@@ -413,16 +414,15 @@ impl Application for App {
 
                                 self.logical_cores_usage_percent[index] = cpu_usage;
 
+                                total_frequency += frequency;
                                 self.logical_cores_frequencies[index] = frequency;
 
                                 total_used += cpu_usage;
                             }
 
-                            self.cpu_usage_percent = total_used / self.logical_cpu_count as f32;
+                            self.cpu_usage_percent = total_used / self.logical_core_count as f32;
 
-                            let global_cpu_info = self.system_info.global_cpu_info();
-
-                            self.cpu_frequency = global_cpu_info.frequency();
+                            self.cpu_frequency = total_frequency / self.logical_core_count as u64;
 
                             // ram
 
@@ -520,7 +520,7 @@ impl Application for App {
                                 &mut self.system_info,
                                 self.cpu_usage_percent,
                                 self.physical_cpu_count,
-                                self.logical_cpu_count,
+                                self.logical_core_count,
                                 self.cpu_brand.clone(),
                                 self.cpu_frequency,
                                 &self.resource_history,
@@ -545,7 +545,7 @@ impl Application for App {
                                         &mut self.system_info,
                                         self.cpu_usage_percent,
                                         self.physical_cpu_count,
-                                        self.logical_cpu_count,
+                                        self.logical_core_count,
                                         self.cpu_brand.clone(),
                                         self.cpu_frequency,
                                         &self.resource_history,
@@ -570,7 +570,7 @@ impl Application for App {
                                 &mut self.system_info,
                                 self.cpu_usage_percent,
                                 self.physical_cpu_count,
-                                self.logical_cpu_count,
+                                self.logical_core_count,
                                 self.cpu_brand.clone(),
                                 self.cpu_frequency,
                                 &self.resource_history,

@@ -38,7 +38,7 @@ use crate::{
             resource_details_child, resource_details_header,
         },
     },
-    utils::format_bytes,
+    utils::{format_bytes, format_hz},
     ActivePreview, DiskData, ResourceData, ResourceHistory, ResourceType,
 };
 
@@ -593,7 +593,11 @@ impl ResourceDetails {
                             column!["No RAM data to display"]
                         } else {
                             column![
-                                container(memory_details.ram_chart.view(None).map(move |message| ResourceDetailsMessage::ResourceChartMessage(message))),
+                                container(memory_details.ram_chart.view(None).map(
+                                    move |message| ResourceDetailsMessage::ResourceChartMessage(
+                                        message
+                                    )
+                                )),
                                 seperator_background_1(),
                                 split_table_double(vec![(
                                     (
@@ -630,7 +634,11 @@ impl ResourceDetails {
                             column!["No Swap data to display"]
                         } else {
                             column![
-                                container(memory_details.swap_chart.view(None).map(move |message| ResourceDetailsMessage::ResourceChartMessage(message))),
+                                container(memory_details.swap_chart.view(None).map(
+                                    move |message| ResourceDetailsMessage::ResourceChartMessage(
+                                        message
+                                    )
+                                )),
                                 seperator_background_1(),
                                 split_table_double(vec![(
                                     (
@@ -726,15 +734,9 @@ impl ResourceDetails {
                 .spacing(padding::PORTION);
 
                 let main = container(
-                    column![
-                        ram_details,
-                        swap_details,
-                        thermals,
-                        about,
-                        advanced
-                    ]
-                    .spacing(20)
-                    .align_items(alignment::Alignment::Center),
+                    column![ram_details, swap_details, thermals, about, advanced]
+                        .spacing(20)
+                        .align_items(alignment::Alignment::Center),
                 )
                 .center_x()
                 .width(Length::Fill)
@@ -779,9 +781,15 @@ impl ResourceDetails {
                                 for usage_percent in &cpu_details.logical_cores_usage_percents {
                                     children.push(
                                         section_box_headless(column![
-                                            cpu_details.logical_core_charts[i].view(Some(
-                                                Length::Fixed(DEFAULT_CHART_HEIGHT / 2.)
-                                            )).map(move |message| ResourceDetailsMessage::ResourceChartMessage(message)),
+                                            cpu_details.logical_core_charts[i]
+                                                .view(Some(Length::Fixed(
+                                                    DEFAULT_CHART_HEIGHT / 2.
+                                                )))
+                                                .map(move |message| {
+                                                    ResourceDetailsMessage::ResourceChartMessage(
+                                                        message,
+                                                    )
+                                                }),
                                             seperator_background_1(),
                                             split_table_double(vec![(
                                                 (
@@ -790,7 +798,10 @@ impl ResourceDetails {
                                                 ),
                                                 (
                                                     text(String::from("Frequency")),
-                                                    text(format!("{:.2}Hz", cpu_details.frequency))
+                                                    text(format_hz(
+                                                        cpu_details.logical_cores_frequencies[i]
+                                                            as f32
+                                                    ))
                                                 )
                                             )]),
                                         ])
@@ -819,7 +830,9 @@ impl ResourceDetails {
                                     .on_toggle(ResourceDetailsMessage::ToggleLogicalCores)],
                             ),
                             column![
-                                cpu_details.cpu_chart.view(None).map(move |message| ResourceDetailsMessage::ResourceChartMessage(message)),
+                                cpu_details.cpu_chart.view(None).map(move |message| {
+                                    ResourceDetailsMessage::ResourceChartMessage(message)
+                                }),
                                 seperator_background_1(),
                                 split_table_double(vec![(
                                     (
@@ -828,7 +841,7 @@ impl ResourceDetails {
                                     ),
                                     (
                                         text(String::from("Frequency")),
-                                        text(format!("{:.2}Hz", cpu_details.frequency))
+                                        text(format_hz(cpu_details.frequency as f32))
                                     )
                                 )]),
                             ],
@@ -868,8 +881,8 @@ impl ResourceDetails {
                             text(format!("{}", cpu_details.brand)),
                         ),
                         (
-                            text(String::from("Frequency")),
-                            text(format!("{}Hz", cpu_details.frequency)),
+                            text(String::from("Max frequency")),
+                            text(format_hz(0.)),
                         ),
                     ])],
                 );
@@ -918,11 +931,13 @@ impl ResourceDetails {
                     ),
                     {
                         column![
-                            container(disk_details.read_chart.view(None).map(move |message| ResourceDetailsMessage::ResourceChartMessage(message))),
+                            container(disk_details.read_chart.view(None).map(move |message| {
+                                ResourceDetailsMessage::ResourceChartMessage(message)
+                            })),
                             seperator_background_1(),
                             split_table_single(vec![(
                                 text("Reads".to_string()),
-                                text(format!("{:.2} GB", format_bytes(disk_details.read_bytes)))
+                                text(format_bytes(disk_details.read_bytes as f32))
                             )]),
                         ]
                     },
@@ -936,14 +951,13 @@ impl ResourceDetails {
                     ),
                     {
                         column![
-                            container(disk_details.written_chart.view(None).map(move |message| ResourceDetailsMessage::ResourceChartMessage(message))),
+                            container(disk_details.written_chart.view(None).map(move |message| {
+                                ResourceDetailsMessage::ResourceChartMessage(message)
+                            })),
                             seperator_background_1(),
                             split_table_single(vec![(
                                 text("Writes".to_string()),
-                                text(format!(
-                                    "{:.2} GB",
-                                    format_bytes(disk_details.written_bytes)
-                                ))
+                                text(format_bytes(disk_details.written_bytes as f32))
                             )]),
                         ]
                     },
