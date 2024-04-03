@@ -79,7 +79,7 @@ impl DiskDetails {
     }
 
     // For some reason it won't let me use ResourceDiskMessage
-    pub fn view(&self) -> Element<DiskDetailsMessage> {
+    pub fn view(&self, preferences: &Preferences) -> Element<DiskDetailsMessage> {
         let header = container(row![text(self.name.clone())])
             .center_x()
             .style(resource_details_header())
@@ -102,7 +102,7 @@ impl DiskDetails {
                     seperator_background_1(),
                     split_table_single(vec![(
                         text("Reads".to_string()),
-                        text(format_bytes(self.read as f32))
+                        text(format_bytes(preferences, self.read as f32))
                     )]),
                 ]
             },
@@ -124,7 +124,7 @@ impl DiskDetails {
                     seperator_background_1(),
                     split_table_single(vec![(
                         text("Writes".to_string()),
-                        text(format_bytes(self.written as f32))
+                        text(format_bytes(preferences, self.written as f32))
                     )]),
                 ]
             },

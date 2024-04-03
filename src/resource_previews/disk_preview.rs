@@ -9,7 +9,7 @@ use iced_aw::BootstrapIcon;
 use sysinfo::{Disk, DiskKind};
 
 use crate::{
-    constants::{custom_theme, font_sizes, padding}, general_widgets::icons::bootstrap_icon, resource_details::resource_details::ResourceDetailsMessage, styles, utils::format_bytes, ActivePreview, DiskData, ResourceType
+    constants::{custom_theme, font_sizes, padding}, general_widgets::icons::bootstrap_icon, preferences::Preferences, resource_details::resource_details::ResourceDetailsMessage, styles, utils::format_bytes, ActivePreview, DiskData, ResourceType
 };
 
 use super::resource_preview::{
@@ -62,13 +62,13 @@ impl DiskPreview {
         self.disk_kind = disk_data.kind;
     }
 
-    pub fn view(&self, active_preview: &ActivePreview) -> Element<ResourcePreviewMessage> {
+    pub fn view(&self, preferences: &Preferences, active_preview: &ActivePreview) -> Element<ResourcePreviewMessage> {
         let content = column![
             row![
                 bootstrap_icon(BootstrapIcon::Hdd).size(font_sizes::H2),
                 text(format!(
                     "{} {}",
-                    format_bytes(self.disk_size as f32),
+                    format_bytes(preferences, self.disk_size as f32),
                     self.disk_kind
                 ))
                 .size(font_sizes::H2),
@@ -79,7 +79,7 @@ impl DiskPreview {
                     bootstrap_icon(BootstrapIcon::Eye)
                         .style(theme::Text::Color(custom_theme::GREY_TEXT))
                         .size(font_sizes::H4),
-                    text(format_bytes(self.disk_read as f32))
+                    text(format_bytes(preferences, self.disk_read as f32))
                         .style(theme::Text::Color(custom_theme::GREY_TEXT))
                         .size(font_sizes::H4)
                 ]
@@ -88,7 +88,7 @@ impl DiskPreview {
                     bootstrap_icon(BootstrapIcon::Pen)
                         .style(theme::Text::Color(custom_theme::GREY_TEXT))
                         .size(font_sizes::H4),
-                    text(format_bytes(self.disk_written as f32))
+                    text(format_bytes(preferences, self.disk_written as f32))
                         .style(theme::Text::Color(custom_theme::GREY_TEXT))
                         .size(font_sizes::H4)
                 ]

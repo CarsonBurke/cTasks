@@ -428,7 +428,7 @@ impl ResourceDetails {
         Command::none()
     }
 
-    pub fn view(&self) -> Element<ResourceDetailsMessage> {
+    pub fn view(&self, preferences: &Preferences) -> Element<ResourceDetailsMessage> {
         match &self.resource {
             ResourceType::Applications => {
                 let content = row![];
@@ -799,6 +799,7 @@ impl ResourceDetails {
                                                 (
                                                     text(String::from("Frequency")),
                                                     text(format_hz(
+                                                        preferences,
                                                         cpu_details.logical_cores_frequencies[i]
                                                             as f32
                                                     ))
@@ -841,7 +842,7 @@ impl ResourceDetails {
                                     ),
                                     (
                                         text(String::from("Frequency")),
-                                        text(format_hz(cpu_details.frequency as f32))
+                                        text(format_hz(preferences, cpu_details.frequency as f32))
                                     )
                                 )]),
                             ],
@@ -882,7 +883,7 @@ impl ResourceDetails {
                         ),
                         (
                             text(String::from("Max frequency")),
-                            text(format_hz(0.)),
+                            text(format_hz(preferences, 0.)),
                         ),
                     ])],
                 );
@@ -937,7 +938,7 @@ impl ResourceDetails {
                             seperator_background_1(),
                             split_table_single(vec![(
                                 text("Reads".to_string()),
-                                text(format_bytes(disk_details.read_bytes as f32))
+                                text(format_bytes(preferences, disk_details.read_bytes as f32))
                             )]),
                         ]
                     },
@@ -957,7 +958,7 @@ impl ResourceDetails {
                             seperator_background_1(),
                             split_table_single(vec![(
                                 text("Writes".to_string()),
-                                text(format_bytes(disk_details.written_bytes as f32))
+                                text(format_bytes(preferences, disk_details.written_bytes as f32))
                             )]),
                         ]
                     },

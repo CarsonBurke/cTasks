@@ -677,7 +677,7 @@ impl Application for App {
                     for (_, disk_preview) in &self.previews.disks {
                         children.push(
                             disk_preview
-                                .view(&self.active_preview)
+                                .view(&self.preferences, &self.active_preview)
                                 .map(|message| AppMessage::ResourcePreviewMessage(message)),
                         );
                     }
@@ -733,7 +733,7 @@ impl Application for App {
                             };
 
                             details
-                                .view()
+                                .view(&self.preferences)
                                 .map(move |message| {
                                     AppMessage::ResourceDetailsMessageNew(
                                         ResourceDetailsMessageNew::DiskDetailsMessage(message),
@@ -751,7 +751,7 @@ impl Application for App {
                     //                    Scrollable::new(
                     column![self
                         .main_content
-                        .view()
+                        .view(&self.preferences)
                         .map(move |message| AppMessage::ResourceDetailsMessage(message))]
                     .spacing(10),
                     // )
