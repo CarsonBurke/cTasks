@@ -14,10 +14,10 @@ pub mod spacings {
 }
 
 pub mod font_sizes {
-    pub const H2: u16 = 17;
-    pub const H3: u16 = 15;
-    pub const H4: u16 = 14;
-    pub const P: u16 = 14;
+    pub const H1: u16 = 17;
+    pub const H2: u16 = 15;
+    pub const H3: u16 = 13;
+    pub const P: u16 = 13;
 }
 
 pub mod sizings {
@@ -32,8 +32,10 @@ pub enum DisplayState {
     Hidden,
 }
 
-pub const byte_units_decimal: [&str; 9] = ["B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB"];
-pub const byte_units_binary: [&str; 9] = ["B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB"];
+pub const byte_units_decimal: [&str; 9] =
+    ["B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB"];
+pub const byte_units_binary: [&str; 9] =
+    ["B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB"];
 pub const frequency_units: [&str; 3] = ["MHz", "GHz", "THz"];
 pub static ICON: &[u8] = include_bytes!("icon.png");
 

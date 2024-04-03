@@ -14,8 +14,8 @@ pub fn section_box<'a, Message: 'a>(
     body: Column<'a, Message>,
 ) -> Column<'a, Message> {
     let header = row![
-        header.0.size(font_sizes::H2),
-        header.1.size(font_sizes::H2),
+        header.0.size(font_sizes::H1),
+        header.1.size(font_sizes::H1),
         horizontal_space(),
         header.2
     ]
@@ -49,16 +49,14 @@ pub fn section<'a, Message: 'a>(
     body: Column<'a, Message>,
 ) -> Column<'a, Message> {
     let header = row![
-        header.0.size(font_sizes::H2),
-        header.1.size(font_sizes::H2),
+        header.0.size(font_sizes::H1),
+        header.1.size(font_sizes::H1),
         horizontal_space(),
         header.2
     ]
     .spacing(padding::MAIN);
 
-    let body_content = container(body)
-        .width(Length::Fill)
-        .center_y();
+    let body_content = container(body).width(Length::Fill).center_y();
 
     let content = column![header, body_content]
         .spacing(padding::PORTION)

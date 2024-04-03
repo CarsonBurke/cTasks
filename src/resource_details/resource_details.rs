@@ -705,8 +705,8 @@ impl ResourceDetails {
                     row![
                         text(iced_aw::graphics::icons::BootstrapIcon::Tools.to_string())
                             .font(iced_aw::BOOTSTRAP_FONT)
-                            .size(font_sizes::H2),
-                        text(String::from("Advanced")).size(font_sizes::H2) // i in the top right that takes someone to a description of what Swap is
+                            .size(font_sizes::H1),
+                        text(String::from("Advanced")).size(font_sizes::H1) // i in the top right that takes someone to a description of what Swap is
                     ]
                     .spacing(padding::MAIN),
                     container(column![
@@ -885,14 +885,8 @@ impl ResourceDetails {
                             text(String::from("Max frequency")),
                             text(format_hz(preferences, 0.)),
                         ),
-                        (
-                            text(String::from("Architecture")),
-                            text("x_96"),
-                        ),
-                        (
-                            text(String::from("Virtualization")),
-                            text("Muh virtual"),
-                        ),
+                        (text(String::from("Architecture")), text("x_96"),),
+                        (text(String::from("Virtualization")), text("Muh virtual"),),
                     ])],
                 );
 

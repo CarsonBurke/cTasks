@@ -9,7 +9,13 @@ use iced_aw::BootstrapIcon;
 use sysinfo::{Disk, DiskKind};
 
 use crate::{
-    constants::{custom_theme, font_sizes, padding}, general_widgets::icons::bootstrap_icon, preferences::Preferences, resource_details::resource_details::ResourceDetailsMessage, styles, utils::format_bytes, ActivePreview, DiskData, ResourceType
+    constants::{custom_theme, font_sizes, padding},
+    general_widgets::icons::bootstrap_icon,
+    preferences::Preferences,
+    resource_details::resource_details::ResourceDetailsMessage,
+    styles,
+    utils::format_bytes,
+    ActivePreview, DiskData, ResourceType,
 };
 
 use super::resource_preview::{
@@ -53,7 +59,6 @@ impl DiskPreview {
     }
 
     pub fn on_tick(&mut self, disk_data: &DiskData) {
-
         self.disk_name = disk_data.name.clone()/* .to_str().unwrap_or("no name").to_string() */;
         self.disk_size = disk_data.space_total;
         self.disk_used = disk_data.space_used;
@@ -62,7 +67,11 @@ impl DiskPreview {
         self.disk_kind = disk_data.kind;
     }
 
-    pub fn view(&self, preferences: &Preferences, active_preview: &ActivePreview) -> Element<ResourcePreviewMessage> {
+    pub fn view(
+        &self,
+        preferences: &Preferences,
+        active_preview: &ActivePreview,
+    ) -> Element<ResourcePreviewMessage> {
         let content = column![
             row![
                 bootstrap_icon(BootstrapIcon::Hdd).size(font_sizes::H2),
@@ -78,19 +87,19 @@ impl DiskPreview {
                 row![
                     bootstrap_icon(BootstrapIcon::Eye)
                         .style(theme::Text::Color(custom_theme::GREY_TEXT))
-                        .size(font_sizes::H4),
+                        .size(font_sizes::P),
                     text(format_bytes(preferences, self.disk_read as f32))
                         .style(theme::Text::Color(custom_theme::GREY_TEXT))
-                        .size(font_sizes::H4)
+                        .size(font_sizes::P)
                 ]
                 .spacing(padding::PORTION),
                 row![
                     bootstrap_icon(BootstrapIcon::Pen)
                         .style(theme::Text::Color(custom_theme::GREY_TEXT))
-                        .size(font_sizes::H4),
+                        .size(font_sizes::P),
                     text(format_bytes(preferences, self.disk_written as f32))
                         .style(theme::Text::Color(custom_theme::GREY_TEXT))
-                        .size(font_sizes::H4)
+                        .size(font_sizes::P)
                 ]
                 .spacing(padding::PORTION)
             ]
@@ -109,7 +118,8 @@ impl DiskPreview {
             ))
             .style(iced::theme::Button::Custom(Box::new(
                 styles::button::Background3Blended {
-                    display_as_pressed: active_preview.0 == self.disk_name && active_preview.1 == self.resource,
+                    display_as_pressed: active_preview.0 == self.disk_name
+                        && active_preview.1 == self.resource,
                 },
             )));
 

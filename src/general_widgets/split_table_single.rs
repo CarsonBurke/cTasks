@@ -24,7 +24,7 @@ use iced::{
 };
 
 use crate::{
-    constants::{custom_theme, padding},
+    constants::{custom_theme, font_sizes, padding},
     styles::container::divider_background_1,
 };
 
@@ -49,8 +49,10 @@ pub fn split_table_single<'a, Message: 'a>(
             children.push(
                 column![
                     row![column![
-                        header.style(theme::Text::Color(custom_theme::GREY_TEXT)),
-                        descriptor,
+                        header
+                            .size(font_sizes::H3)
+                            .style(theme::Text::Color(custom_theme::GREY_TEXT)),
+                        descriptor.size(font_sizes::H2),
                     ]]
                     .padding(padding::MAIN),
                     seperator,
