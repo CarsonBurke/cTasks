@@ -803,7 +803,7 @@ impl ResourceDetails {
                                                         cpu_details.logical_cores_frequencies[i]
                                                             as f32
                                                     ))
-                                                )
+                                                ),
                                             )]),
                                         ])
                                         .max_width(
@@ -884,6 +884,14 @@ impl ResourceDetails {
                         (
                             text(String::from("Max frequency")),
                             text(format_hz(preferences, 0.)),
+                        ),
+                        (
+                            text(String::from("Architecture")),
+                            text("x_96"),
+                        ),
+                        (
+                            text(String::from("Virtualization")),
+                            text("Muh virtual"),
                         ),
                     ])],
                 );
