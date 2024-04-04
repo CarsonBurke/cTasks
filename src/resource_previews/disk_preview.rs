@@ -18,8 +18,9 @@ use crate::{
     ActivePreview, DiskData, ResourceType,
 };
 
-use super::resource_preview::{
-    ResourcePreview, ResourcePreviewDisplayState, ResourcePreviewMessage,
+use super::{
+    preview_widgets::{preview_header, preview_metrics},
+    resource_preview::{ResourcePreview, ResourcePreviewDisplayState, ResourcePreviewMessage},
 };
 
 #[derive(Debug)]
@@ -73,37 +74,24 @@ impl DiskPreview {
         active_preview: &ActivePreview,
     ) -> Element<ResourcePreviewMessage> {
         let content = column![
-            row![
-                bootstrap_icon(BootstrapIcon::Hdd).size(font_sizes::H2),
+            preview_header(
+                bootstrap_icon(BootstrapIcon::Hdd),
                 text(format!(
                     "{} {}",
                     format_bytes(preferences, self.disk_size as f32),
                     self.disk_kind
                 ))
-                .size(font_sizes::H2),
-            ]
-            .spacing(padding::PORTION),
-            row![
-                row![
-                    bootstrap_icon(BootstrapIcon::Eye)
-                        .style(theme::Text::Color(custom_theme::GREY_TEXT))
-                        .size(font_sizes::P),
-                    text(format_bytes(preferences, self.disk_read as f32))
-                        .style(theme::Text::Color(custom_theme::GREY_TEXT))
-                        .size(font_sizes::P)
-                ]
-                .spacing(padding::PORTION),
-                row![
-                    bootstrap_icon(BootstrapIcon::Pen)
-                        .style(theme::Text::Color(custom_theme::GREY_TEXT))
-                        .size(font_sizes::P),
-                    text(format_bytes(preferences, self.disk_written as f32))
-                        .style(theme::Text::Color(custom_theme::GREY_TEXT))
-                        .size(font_sizes::P)
-                ]
-                .spacing(padding::PORTION)
-            ]
-            .spacing(padding::MAIN),
+            ),
+            preview_metrics(vec![
+                (
+                    bootstrap_icon(BootstrapIcon::Eye),
+                    text(format_bytes(preferences, self.disk_read as f32)),
+                ),
+                (
+                    bootstrap_icon(BootstrapIcon::Pen),
+                    text(format_bytes(preferences, self.disk_written as f32)),
+                )
+            ]),
             progress_bar(0.0..=100.0, self.disk_used as f32 / self.disk_total as f32)
                 .height(5)
                 .width(Length::Fill)
