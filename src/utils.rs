@@ -1,19 +1,29 @@
 use crate::{constants::{byte_units_binary, byte_units_decimal, frequency_units}, preferences::{ByteBase, Preferences}};
 
 pub fn format_bytes(preferences: &Preferences, mut bytes: f32) -> String {
-    let units = match preferences.byte_base {
+
+    let mut i = 0;
+
+    let (units, factor) = match preferences.byte_base {
         ByteBase::Decimal => {
-            byte_units_decimal.clone()
+            let units = byte_units_decimal.clone();
+            let factor = 1000.;
+
+            (units, factor)
         }
         ByteBase::Binary => {   
-            byte_units_binary.clone()
+            let units = byte_units_binary.clone();
+            let factor = 1024.;
+
+            (units, factor)
         }
     };
-    let mut i = 0;
-    while bytes >= 1024. && i < units.len() - 1 {
-        bytes /= 1024.;
+
+    while bytes >= factor && i < units.len() - 1 {
+        bytes /= factor;
         i += 1;
-    }
+    };
+
     format!("{:.2} {}", bytes, units[i])
 }
 
