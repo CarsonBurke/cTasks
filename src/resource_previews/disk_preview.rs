@@ -71,7 +71,6 @@ impl DiskPreview {
         preferences: &Preferences,
         active_preview: &ActivePreview,
     ) -> Element<ResourcePreviewMessage> {
-        println!("used {} total {} percent {}", self.disk_used, self.disk_size, self.disk_used as f32 / self.disk_size as f32);
         let content = column![
             preview_header(
                 bootstrap_icon(BootstrapIcon::Hdd),
