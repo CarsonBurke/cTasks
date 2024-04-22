@@ -158,7 +158,6 @@ impl DiskDetails {
 
                                 format!("{} / {} {}", result.0[0], result.0[1], result.1)
                             })
-
                         ),
                         (
                             text("Percent used".to_string()),

@@ -63,9 +63,7 @@ pub fn round_bytes_list(preferences: &Preferences, bytes_vec: Vec<f32>) -> (Vec<
 
         min_unit = units[i];
         min_multiplier = i;
-    }
-
-    println!("min multiplier {}", min_multiplier);    
+    }  
 
     let mut modified_bytes_list: Vec<String> = Vec::new();
 

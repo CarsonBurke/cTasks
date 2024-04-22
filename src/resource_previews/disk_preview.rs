@@ -31,7 +31,6 @@ pub struct DiskPreview {
     pub disk_read: u64,
     pub disk_written: u64,
     pub disk_used: u64,
-    pub disk_total: u64,
     pub disk_kind: DiskKind,
     pub display_state: ResourcePreviewDisplayState,
 }
@@ -46,7 +45,6 @@ impl Default for DiskPreview {
             disk_used: 0,
             disk_read: 0,
             disk_written: 0,
-            disk_total: 0,
             display_state: ResourcePreviewDisplayState::Shown,
         }
     }
@@ -73,6 +71,7 @@ impl DiskPreview {
         preferences: &Preferences,
         active_preview: &ActivePreview,
     ) -> Element<ResourcePreviewMessage> {
+        println!("used {} total {} percent {}", self.disk_used, self.disk_size, self.disk_used as f32 / self.disk_size as f32);
         let content = column![
             preview_header(
                 bootstrap_icon(BootstrapIcon::Hdd),
@@ -92,7 +91,7 @@ impl DiskPreview {
                     text(format_bytes(preferences, self.disk_written as f32)),
                 )
             ]),
-            progress_bar(0.0..=100.0, self.disk_used as f32 / self.disk_total as f32)
+            progress_bar(0.0..=1., self.disk_used as f32 / self.disk_size as f32)
                 .height(5)
                 .width(Length::Fill)
                 .style(|_: &_| styles::progress_bar::primary_background_5())
