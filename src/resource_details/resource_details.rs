@@ -355,7 +355,7 @@ impl ResourceDetails {
                     disk_details.written_bytes = disk_data.written;
                     disk_details.total_space = disk_data.space_total;
                     disk_details.total_used = disk_data.space_used;
-                    disk_details.is_removable = disk_data.is_removable;
+                    disk_details.is_removable = disk_data.in_depth.is_removable;
                     disk_details.kind = disk_data.kind;
                     disk_details.written_chart = ResourceChart::new(preferences);
                     disk_details.read_chart = ResourceChart::new(preferences);

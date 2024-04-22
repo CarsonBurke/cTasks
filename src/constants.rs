@@ -32,11 +32,11 @@ pub enum DisplayState {
     Hidden,
 }
 
-pub const byte_units_decimal: [&str; 9] =
+pub const BYTE_UNITS_DECIMAL: [&str; 9] =
     ["B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB"];
-pub const byte_units_binary: [&str; 9] =
+pub const BYTE_UNITS_BINARY: [&str; 9] =
     ["B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB"];
-pub const frequency_units: [&str; 3] = ["MHz", "GHz", "THz"];
+pub const FREQUENCY_UNITS: [&str; 3] = ["MHz", "GHz", "THz"];
 pub static ICON: &[u8] = include_bytes!("icon.png");
 
 /// How many decimals to show for percentage values.

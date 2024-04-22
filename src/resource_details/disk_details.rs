@@ -14,7 +14,7 @@ use crate::{
     },
     preferences::Preferences,
     styles::{self, container::resource_details_header},
-    utils::format_bytes,
+    utils::{format_bytes, round_bytes_list},
     DiskData,
 };
 
@@ -64,7 +64,7 @@ impl DiskDetails {
         self.space_used = disk_data.space_used;
         self.kind = disk_data.kind;
         self.name = disk_data.name.clone();
-        self.is_removable = disk_data.is_removable;
+        self.is_removable = disk_data.in_depth.is_removable;
 
         // requires history
 
@@ -149,23 +149,42 @@ impl DiskDetails {
                 row![],
             ),
             column![
-                split_table_double(vec![(
+                split_table_double(vec![
                     (
-                        text("Usage".to_string()),
-                        text(format!(
-                            "{:.2} / {:.2} GB",
-                            self.space_used as f64 / 1024. / 1024. / 1024.,
-                            self.space_total as f64 / 1024. / 1024. / 1024.
-                        ))
+                        (
+                            text("Usage".to_string()),
+                            text({
+                                let result = round_bytes_list(preferences, vec![self.space_used as f32, self.space_total as f32]);
+
+                                format!("{} / {} {}", result.0[0], result.0[1], result.1)
+                            })
+
+                        ),
+                        (
+                            text("Percent used".to_string()),
+                            text(format!(
+                                "{:.1}%",
+                                self.space_used as f64 / self.space_total as f64 * 100.
+                            ))
+                        )
                     ),
                     (
-                        text("Percent used".to_string()),
-                        text(format!(
-                            "{:.1}%",
-                            self.space_used as f64 / self.space_total as f64 * 100.
-                        ))
+                        (
+                            text("Free space".to_string()),
+                            text(format_bytes(
+                                preferences,
+                                self.space_total as f32 - self.space_used as f32
+                            ))
+                        ),
+                        (
+                            text("Percent remaining".to_string()),
+                            text(format!(
+                                "{:.1}%",
+                                (1. - self.space_used as f64 / self.space_total as f64) * 100.
+                            ))
+                        )
                     )
-                )]),
+                ]),
                 seperator_background_1(),
                 split_table_single(vec![
                     (text(String::from("Brand")), text(String::from("Unknown"))),

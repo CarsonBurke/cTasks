@@ -15,9 +15,7 @@ use crate::{
 use super::resource_details::ResourceDetailsMessage;
 
 #[derive(Debug, Clone, Copy)]
-pub enum ResourceChartMessage {
-
-}
+pub enum ResourceChartMessage {}
 
 #[derive(Debug, Default)]
 pub struct ResourceChart {

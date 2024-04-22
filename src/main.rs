@@ -5,6 +5,10 @@ use std::{
     time::Duration,
 };
 
+use battery::{
+    units::{ElectricPotential, Energy, Power, ThermodynamicTemperature},
+    Battery,
+};
 use constants::{padding, DisplayState, ICON, PERCENT_PRECISION};
 use iced::{
     advanced::{
@@ -72,6 +76,7 @@ pub fn main() -> iced::Result {
         window: iced::window::Settings {
             icon: Some(icon),
             transparent: true,
+            // decorations: false,
             ..Default::default()
         },
         ..Default::default()
@@ -124,31 +129,6 @@ impl ResourceHistory {
     }
 }
 
-#[derive(Debug)]
-pub struct DiskData {
-    pub read: u64,
-    pub written: u64,
-    pub is_removable: bool,
-    pub kind: DiskKind,
-    pub name: String,
-    pub space_total: u64,
-    pub space_used: u64,
-}
-
-impl Default for DiskData {
-    fn default() -> Self {
-        Self {
-            name: String::new(),
-            read: 0,
-            written: 0,
-            space_total: 0,
-            space_used: 0,
-            is_removable: false,
-            kind: DiskKind::Unknown(0),
-        }
-    }
-}
-
 #[derive(Debug, Default)]
 pub struct ResourcePreviews {
     pub disks: HashMap<String, DiskPreview>,
@@ -167,14 +147,83 @@ impl ResourcesDetails {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
+pub struct DiskDataInDepth {
+    pub is_removable: bool,
+}
+
+#[derive(Debug)]
+pub struct DiskData {
+    pub read: u64,
+    pub written: u64,
+    pub kind: DiskKind,
+    pub name: String,
+    pub space_total: u64,
+    pub space_used: u64,
+    pub in_depth: DiskDataInDepth,
+}
+
+impl DiskData {
+    fn new() -> Self {
+        Self {
+            name: String::new(),
+            read: 0,
+            written: 0,
+            space_total: 0,
+            space_used: 0,
+            kind: DiskKind::Unknown(0),
+            in_depth: DiskDataInDepth {
+                is_removable: false,
+            },
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct BatteryData {
+    pub index: String,
+    pub vendor: String,
+    pub model: String,
+    /// Number of cycles the battery has gone through
+    pub cycles: u32,
+    pub temperature: ThermodynamicTemperature,
+    pub energy_rate: Power,
+    pub designed_capacity: Energy,
+    pub current_capacity: Energy,
+    pub energy: Energy,
+    pub voltage: ElectricPotential,
+    // Wether the batter is discharging, charging, empty, full or unknown
+    pub state: battery::State,
+    /// Time to either drain or reach capacity, depending on the delta
+    pub time_to_behaviour: Option<battery::units::Time>,
+    pub state_of_health: battery::units::Ratio,
+    pub state_of_charge: battery::units::Ratio,
+    pub technology: battery::Technology,
+}
+
+#[derive(Debug)]
 pub struct ResourceData {
     pub disks: HashMap<String, DiskData>,
+    pub batteries: HashMap<String, BatteryData>,
+}
+
+impl ResourceData {
+    fn new() -> Self {
+        Self {
+            disks: HashMap::new(),
+            batteries: HashMap::new(),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
 pub enum ResourceDetailsMessageNew {
     DiskDetailsMessage(DiskDetailsMessage),
+}
+
+pub enum AppPages {
+    Resources,
+    Preferences,
 }
 
 #[derive(Debug, Clone)]
@@ -255,7 +304,7 @@ impl Application for App {
         let mut new_self = Self {
             tick_interval: 1000,
             state: AppState::Loading,
-            preferences: preferences,
+            preferences,
             system_info,
             physical_cpu_count,
             logical_core_count: logical_cpu_count,
@@ -267,7 +316,7 @@ impl Application for App {
             sidebar_items: Vec::new(),
             main_content: ResourceDetails::new(&preferences, ResourceType::default()),
             active_preview: ("0".to_string(), ResourceType::default()),
-            resource_data: ResourceData::default(),
+            resource_data: ResourceData::new(),
             previews: ResourcePreviews::default(),
             resources_details: ResourcesDetails::new(),
             disk_info: Disks::new(),
@@ -363,7 +412,7 @@ impl Application for App {
                                     continue;
                                 };
 
-                                let mut new_disk_data = DiskData::default();
+                                let mut new_disk_data = DiskData::new();
 
                                 update_disk_data(&mut new_disk_data, &disk_name, disk);
 
@@ -745,7 +794,8 @@ impl Application for App {
                     };
 
                     preview
-                }).style(main_content());
+                })
+                .style(main_content());
 
                 let main = container(
                     //                    Scrollable::new(
@@ -828,5 +878,9 @@ pub fn update_disk_data(disk_data: &mut DiskData, disk_name: &String, disk: &Dis
     disk_data.read = 0;
     disk_data.written = 0;
     disk_data.kind = disk.kind();
-    disk_data.is_removable = disk.is_removable();
+}
+
+pub fn update_disk_data_in_depth(disk_data: &mut DiskData, disk_name: &String, disk: &Disk) {
+
+    disk_data.in_depth.is_removable = disk.is_removable();
 }

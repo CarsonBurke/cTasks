@@ -12,12 +12,13 @@ opt-level = 1
 opt-level = 3
 
 [dependencies]
-iced = { version = "0.12.1", features = ["advanced", "canvas", "tokio", "image"] }
-iced_aw = { version = "0.8.0", default-features = false, features = ["icons", "split", "spinner", "menu", "tab_bar", "floating_element", "grid", "wrap"] }
+iced = { version = "0.12.1", default-features = true, features = ["wgpu", "advanced", "canvas", "tokio", "image", "lazy", "multi-window"] }
+iced_aw = { version = "0.8.0", default-features = true, features = ["icons", "split", "spinner", "menu", "tab_bar", "floating_element", "grid", "wrap"] }
 rand = "0.8.5"
-sysinfo = "0.30.7"
+sysinfo = "0.30.8"
 # nvml = "0.0.2"
 plotters-iced = "0.10"
 plotters = "0.3"
 ordered-float = "4.2.0"
 rust-ini = "0.21.0"
+battery = "0.7.8"

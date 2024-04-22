@@ -13,7 +13,7 @@ pub struct Preferences {
     history_ticks: i32,
     pub chart_y_axis_labels: bool,
     pub chart_y_axis_major_grid_lines: usize,
-    pub byte_base: ByteBase
+    pub byte_base: ByteBase,
 }
 
 impl Default for Preferences {
