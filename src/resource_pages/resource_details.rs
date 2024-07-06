@@ -43,9 +43,9 @@ use crate::{
 };
 
 use super::{
-    applications_details::{ApplicationsDetails, ApplicationsDetailsMessage},
+    applications_page::{ApplicationsPage, ApplicationsPageMessage},
     chart::{ResourceChart, ResourceChartMessage},
-    memory_details::{self, MemoryDetails, MemoryDetailsMessage},
+    memory_page::{self, MemoryPage, MemoryPageMessage},
 };
 
 #[derive(Debug)]
@@ -147,7 +147,7 @@ impl ProcessesDetailsProcs {
 pub struct ResourceDetails {
     pub resource: ResourceType,
     preview_values: Option<u32>,
-    memory_details: Option<MemoryDetails>,
+    memory_details: Option<MemoryPage>,
     processes_details: Option<ProcessesDetails>,
     cpu_details: Option<CpuDetails>,
     pub show_logical_cores: bool,
@@ -177,11 +177,7 @@ impl ResourceDetails {
                 })
             }
             ResourceType::Memory => {
-                self.memory_details = Some(MemoryDetails {
-                    ram_usage: 0,
-                    ram_total: 0,
-                    swap_usage: 0,
-                    swap_total: 0,
+                self.memory_details = Some(MemoryPage {
                     ram_chart: ResourceChart::new(preferences),
                     swap_chart: ResourceChart::new(preferences),
                 })
@@ -288,11 +284,6 @@ impl ResourceDetails {
                 let Some(memory_details) = &mut self.memory_details else {
                     return;
                 };
-
-                memory_details.ram_usage = system_info.used_memory();
-                memory_details.ram_total = system_info.total_memory();
-                memory_details.swap_usage = system_info.used_swap();
-                memory_details.swap_total = system_info.total_swap();
 
                 // RAM usage history
 
@@ -411,6 +402,10 @@ impl ResourceDetails {
 
     pub fn view(&self, preferences: &Preferences) -> Element<ResourceDetailsMessage> {
         match &self.resource {
+            _ => {
+                let content = row![];
+                container(content).into()
+            }
             ResourceType::Applications => {
                 let content = row![];
 
@@ -552,7 +547,7 @@ impl ResourceDetails {
                 let container = container(content);
                 container.into()
             }
-            ResourceType::Memory => {
+            /* ResourceType::Memory => {
                 let Some(memory_details) = &self.memory_details else {
                     return text("Waiting for tick").into();
                 };
@@ -889,7 +884,7 @@ impl ResourceDetails {
 
                 let container = container(content);
                 container.into()
-            }
+            } */
             ResourceType::Gpu => {
                 let content = row![];
 

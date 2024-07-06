@@ -41,16 +41,14 @@ use iced_aw::{
 };
 use preferences::Preferences;
 use resource_pages::{
-    disk_details::{DiskPage, DiskDetailsMessage},
-    resource_details::{ResourceDetails, ResourceDetailsMessage},
+    applications_page::{ApplicationsPage, ApplicationsPageMessage}, cpu_page::{CpuPage, CpuPageMessage}, disk_page::{DiskPage, DiskPageMessage}, memory_page::{MemoryPage, MemoryPageMessage}, resource_details::{ResourceDetails, ResourceDetailsMessage}
 };
 
 use resource_previews::{cpu_preview::CpuPreview, disk_preview::DiskPreview, resource_preview::ResourcePreviewMessage};
 use sidebar::sidebar_item::{SidebarItemParent, SidebarItemParentMessage};
 use styles::container::{main_content, sidebar};
 use sysinfo::{
-    Cpu, CpuRefreshKind, Disk, DiskKind, Disks, MemoryRefreshKind, Networks, ProcessRefreshKind,
-    RefreshKind, System, UpdateKind,
+    Cpu, CpuRefreshKind, Disk, DiskKind, Disks, MemoryRefreshKind, Networks, Pid, ProcessRefreshKind, RefreshKind, System, UpdateKind
 };
 
 use crate::{
@@ -134,6 +132,15 @@ impl ResourceHistory {
 pub struct ResourcePreviews {
     pub cpu: CpuPreview,
     pub disks: HashMap<String, DiskPreview>,
+}
+
+#[derive(Debug)]
+
+pub enum ResourcePage {
+    Cpu(CpuPage),
+    Disk(DiskPage),
+    Memory(MemoryPage),
+    Applications(ApplicationsPage),
 }
 
 #[derive(Debug)]
@@ -241,6 +248,38 @@ pub struct BatteryData {
     pub technology: battery::Technology,
 }
 
+
+#[derive(Debug)]
+pub struct ApplicationsData {
+    pub applications_count: u32,
+    pub applications: Option<HashMap<Pid, ApplicationData>>,
+}
+
+#[derive(Debug)]
+pub struct ApplicationData {
+    // Unsure about some of these properties
+    pub name: String,
+    pub path: String,
+    pub pid: Pid,
+    pub parent_pid: Pid,
+    pub memory_usage: u64,
+    pub cpu_usage: f32,
+}
+
+#[derive(Debug)]
+pub struct MemoryData {
+    pub ram_usage: u64,
+    pub ram_total: u64,
+    pub swap_usage: u64,
+    pub swap_total: u64,
+    pub in_depth: Option<MemoryDataInDepth>,
+}
+
+#[derive(Debug)]
+pub struct MemoryDataInDepth {
+    is_removable: bool,
+}
+
 #[derive(Debug)]
 pub struct ResourceData {
     pub disks: HashMap<String, DiskData>,
@@ -261,8 +300,11 @@ impl ResourceData {
 //
 
 #[derive(Debug, Clone)]
-pub enum ResourceDetailsMessageNew {
-    DiskDetailsMessage(DiskDetailsMessage),
+pub enum ResourcePageMessage {
+    DiskPageMessage(DiskPageMessage),
+    CpuPageMessage(CpuPageMessage),
+    MemoryPageMessage(MemoryPageMessage),
+    ApplicationsPageMessage(ApplicationsPageMessage),
 }
 
 pub enum AppPages {
@@ -276,7 +318,7 @@ enum AppMessage {
     Loaded(Result<(), String>),
     SidebarItemParentMessage(usize, SidebarItemParentMessage),
     ResourceDetailsMessage(ResourceDetailsMessage),
-    ResourceDetailsMessageNew(ResourceDetailsMessageNew),
+    ResourcePageMessage(ResourcePageMessage),
     SetResourceDetails(ResourceType),
     ResourcePreviewMessage(ResourcePreviewMessage),
     Tick,
@@ -300,7 +342,7 @@ pub struct ActivePreview {
 struct App {
     sidebar_items: Vec<SidebarItemParent>,
     preferences: Preferences,
-    main_content: ResourceDetails,
+    main_content: ResourcePage,
     tick_interval: u64,
     system_info: System,
     physical_cpu_count: u32,
@@ -363,7 +405,7 @@ impl Application for App {
             logical_cores_frequencies,
             resource_history: ResourceHistory::new(logical_cpu_count),
             sidebar_items: Vec::new(),
-            main_content: ResourceDetails::new(&preferences, ResourceType::default()),
+            main_content: ResourcePage::Cpu(CpuPage::new(&preferences)),
             active_preview: ActivePreview {
                 resource: ResourceType::default(),
             name: None,},
@@ -414,9 +456,6 @@ impl Application for App {
                         SidebarItemParent::new(ResourceType::Ethernet, String::from("Ethernet")),
                     ];
                     self.state = AppState::Loaded;
-
-                    self.main_content =
-                        ResourceDetails::new(&self.preferences, ResourceType::Processes);
                 }
                 AppMessage::Loaded(Err(_)) => {
                     println!("loading failure");
@@ -642,7 +681,7 @@ impl Application for App {
                                 );
                             }
 
-                            self.main_content.on_tick(
+                            /* self.main_content.on_tick(
                                 &mut self.system_info,
                                 self.cpu_usage_percent,
                                 self.physical_cpu_count,
@@ -655,12 +694,23 @@ impl Application for App {
                                 &self.resource_data,
                                 &self.preferences,
                                 &self.active_preview,
-                            );
+                            ); */
+                        }
+                        AppMessage::ResourcePageMessage(resource_page_message) => {
+
+                            match resource_page_message {
+                                ResourcePageMessage::DiskPageMessage(disk_page_message) => {
+
+                                }
+                                _ => {
+
+                                }
+                            }
                         }
                         AppMessage::ResourceDetailsMessage(resource_details_message) => {
                             // println!("message: {:?}", resource_details_message);
 
-                            let _ = self
+                            /* let _ = self
                                 .main_content
                                 .update(resource_details_message)
                                 .map(AppMessage::ResourceDetailsMessage);
@@ -683,10 +733,10 @@ impl Application for App {
                                     );
                                 }
                                 _ => {}
-                            }
+                            } */
                         }
                         AppMessage::SetResourceDetails(resource) => {
-                            if resource == self.main_content.resource {
+                            /* if resource == self.main_content.resource {
                                 return;
                             }
 
@@ -705,7 +755,7 @@ impl Application for App {
                                 &self.resource_data,
                                 &self.preferences,
                                 &self.active_preview,
-                            );
+                            ); */
                         }
                         AppMessage::ResourcePreviewMessage(preview_message) => {
                             match preview_message {
@@ -717,8 +767,10 @@ impl Application for App {
 
                                     self.active_preview = ActivePreview{resource: active_preview.resource, name: active_preview.name};
 
-                                    self.main_content
-                                        .apply_resource_type(active_preview.resource, &self.preferences)
+                                    // change resource page to match preview
+
+                                    /* self.main_content
+                                        .apply_resource_type(active_preview.resource, &self.preferences) */
                                 }
                             }
                         }
@@ -868,8 +920,8 @@ impl Application for App {
                             details
                                 .view(&self.preferences, data)
                                 .map(move |message| {
-                                    AppMessage::ResourceDetailsMessageNew(
-                                        ResourceDetailsMessageNew::DiskDetailsMessage(message),
+                                    AppMessage::ResourcePageMessage(
+                                        ResourcePageMessage::DiskPageMessage(message),
                                     )
                                 })
                                 .into()
@@ -883,11 +935,12 @@ impl Application for App {
 
                 let main = container(
                     //                    Scrollable::new(
-                    column![self
+                    /* column![self
                         .main_content
                         .view(&self.preferences)
                         .map(move |message| AppMessage::ResourceDetailsMessage(message))]
-                    .spacing(10),
+                    .spacing(10), */
+                    row![],
                     // )
                     // .direction(Direction::Vertical(Properties::default())),
                 )
@@ -913,7 +966,7 @@ impl Application for App {
     fn theme(&self) -> Theme {
         let theme_color = CustomThemeChoice::from_system();
 
-        let theme = match theme_color {
+        match theme_color {
             CustomThemeChoice::Dark => iced::Theme::custom(
                 String::from("Custom"),
                 iced::theme::Palette {
@@ -936,9 +989,7 @@ impl Application for App {
                     background: Color::from_rgb(42. / 255., 42. / 255., 42. / 255.),
                 },
             ),
-        };
-
-        theme
+        }
     }
 }
 

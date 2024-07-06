@@ -24,14 +24,12 @@ use super::{
 };
 
 #[derive(Debug, Clone)]
-pub enum DiskDetailsMessage {
-    Mount(String),
+pub enum DiskPageMessage {
     ResourceChartMessage(ResourceChartMessage),
 }
 
 #[derive(Debug)]
-pub struct 
-DiskPage {
+pub struct DiskPage {
     written_chart: ResourceChart,
     read_chart: ResourceChart,
 }
@@ -39,20 +37,24 @@ DiskPage {
 impl DiskPage {
     pub fn new(preferences: &Preferences) -> Self {
         Self {
-            written_chart: ResourceChart::new(&preferences),
-            read_chart: ResourceChart::new(&preferences),
+            written_chart: ResourceChart::new(preferences),
+            read_chart: ResourceChart::new(preferences),
         }
     }
 
-    pub fn update(&mut self, message: DiskDetailsMessage) -> Command<DiskDetailsMessage> {
+    pub fn update(&mut self, message: DiskPageMessage) -> Command<DiskPageMessage> {
         match message {
             _ => Command::none(),
         }
     }
 
     // For some reason it won't let me use ResourceDiskMessage
-    pub fn view(&self, preferences: &Preferences, disk_data: &DiskData) -> Element<DiskDetailsMessage> {
-        let header = container(row![text(disk_data.name.clone())])
+    pub fn view(
+        &self,
+        preferences: &Preferences,
+        data: &DiskData,
+    ) -> Element<DiskPageMessage> {
+        let header = container(row![text(data.name.clone())])
             .center_x()
             .style(resource_details_header())
             .width(Length::Fill)
@@ -69,12 +71,12 @@ impl DiskPage {
                     container(
                         self.read_chart
                             .view(None)
-                            .map(move |message| DiskDetailsMessage::ResourceChartMessage(message))
+                            .map(move |message| DiskPageMessage::ResourceChartMessage(message))
                     ),
                     seperator_background_1(),
                     split_table_single(vec![(
                         text("Reads".to_string()),
-                        text(format_bytes(preferences, disk_data.read as f32))
+                        text(format_bytes(preferences, data.read as f32))
                     )]),
                 ]
             },
@@ -91,12 +93,12 @@ impl DiskPage {
                     container(
                         self.written_chart
                             .view(None)
-                            .map(move |message| DiskDetailsMessage::ResourceChartMessage(message))
+                            .map(move |message| DiskPageMessage::ResourceChartMessage(message))
                     ),
                     seperator_background_1(),
                     split_table_single(vec![(
                         text("Writes".to_string()),
-                        text(format_bytes(preferences, disk_data.written as f32))
+                        text(format_bytes(preferences, data.written as f32))
                     )]),
                 ]
             },
@@ -126,7 +128,10 @@ impl DiskPage {
                         (
                             text("Usage".to_string()),
                             text({
-                                let result = round_bytes_list(preferences, vec![disk_data.space_used as f32, disk_data.space_total as f32]);
+                                let result = round_bytes_list(
+                                    preferences,
+                                    vec![data.space_used as f32, data.space_total as f32],
+                                );
 
                                 format!("{} / {} {}", result.0[0], result.0[1], result.1)
                             })
@@ -135,7 +140,7 @@ impl DiskPage {
                             text("Percent used".to_string()),
                             text(format!(
                                 "{:.1}%",
-                                disk_data.space_used as f64 / disk_data.space_total as f64 * 100.
+                                data.space_used as f64 / data.space_total as f64 * 100.
                             ))
                         )
                     ),
@@ -144,14 +149,15 @@ impl DiskPage {
                             text("Free space".to_string()),
                             text(format_bytes(
                                 preferences,
-                                disk_data.space_total as f32 - disk_data.space_used as f32
+                                data.space_total as f32 - data.space_used as f32
                             ))
                         ),
                         (
                             text("Percent remaining".to_string()),
                             text(format!(
                                 "{:.1}%",
-                                (1. - disk_data.space_used as f64 / disk_data.space_total as f64) * 100.
+                                (1. - data.space_used as f64 / data.space_total as f64)
+                                    * 100.
                             ))
                         )
                     )
@@ -159,10 +165,16 @@ impl DiskPage {
                 seperator_background_1(),
                 split_table_single(vec![
                     (text(String::from("Brand")), text(String::from("Unknown"))),
-                    (text(String::from("Kind")), text(format!("{}", disk_data.kind))),
+                    (
+                        text(String::from("Kind")),
+                        text(format!("{}", data.kind))
+                    ),
                     (
                         text(String::from("Removable")),
-                        text(format!("{}", disk_data.in_depth.as_ref().unwrap().is_removable))
+                        text(format!(
+                            "{}",
+                            data.in_depth.as_ref().unwrap().is_removable
+                        ))
                     ),
                 ])
             ],

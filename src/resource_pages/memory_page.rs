@@ -6,53 +6,40 @@ use iced::{
 use iced_aw::style;
 use sysinfo::{MemoryRefreshKind, RefreshKind, System};
 
+use crate::{preferences::Preferences, MemoryData};
+
 use super::chart::ResourceChart;
 
-#[derive(Debug, Default, Clone)]
-pub enum MemoryDetailsMessage {
-    #[default]
-    State,
+#[derive(Debug, Clone)]
+pub enum MemoryPageMessage {
+
 }
 
-#[derive(Debug, Default)]
-pub struct MemoryDetails {
-    pub ram_usage: u64,
-    pub ram_total: u64,
-    pub swap_usage: u64,
-    pub swap_total: u64,
+#[derive(Debug)]
+pub struct MemoryPage {
     pub ram_chart: ResourceChart,
     pub swap_chart: ResourceChart,
 }
 
-impl MemoryDetails {
-    pub fn new() -> Self {
+impl MemoryPage {
+    pub fn new(preferences: &Preferences) -> Self {
         Self {
-            ..Default::default()
+            ram_chart: ResourceChart::new(preferences),
+            swap_chart: ResourceChart::new(preferences),
         }
     }
 
-    pub fn on_tick(&mut self) {
-        let system_info = System::new_with_specifics(
-            RefreshKind::new().with_memory(MemoryRefreshKind::everything()),
-        );
-
-        self.ram_usage = system_info.used_memory();
-        self.ram_total = system_info.total_memory();
-        self.swap_usage = system_info.used_swap();
-        self.swap_total = system_info.total_swap();
-    }
-
-    pub fn view(&self) -> Element<MemoryDetailsMessage> {
+    pub fn view(&self, preferences: &Preferences, data: &MemoryData) -> Element<MemoryPageMessage> {
         let header = container(row!["Memory"])
             .center_x()
             .style(theme::Container::Box)
             .width(Length::Fill);
 
         let ram_details = {
-            if self.ram_usage == 0 || self.ram_total == 0 {
+            if data.ram_usage == 0 || data.ram_total == 0 {
                 column!["No RAM data to display"]
             } else {
-                let ram_percent = self.ram_usage * 100 / self.ram_total;
+                let ram_percent = data.ram_usage * 100 / data.ram_total;
 
                 column![
                     row![
@@ -65,8 +52,8 @@ impl MemoryDetails {
                     row![
                         text(format!(
                             "{:.2} / {:.2} GB",
-                            self.ram_usage as f64 / 1024. / 1024. / 1024.,
-                            self.ram_total as f64 / 1024. / 1024. / 1024.
+                            data.ram_usage as f64 / 1024. / 1024. / 1024.,
+                            data.ram_total as f64 / 1024. / 1024. / 1024.
                         )),
                         /* use a dot like with lists */ text(String::from(" • ")),
                         text(format!("{}%", ram_percent))
@@ -78,10 +65,10 @@ impl MemoryDetails {
         };
 
         let swap_details = {
-            if self.swap_usage == 0 || self.swap_total == 0 {
+            if data.swap_usage == 0 || data.swap_total == 0 {
                 column!["No Swap data to display"]
             } else {
-                let swap_percent = self.swap_usage * 100 / self.swap_total;
+                let swap_percent = data.swap_usage * 100 / data.swap_total;
 
                 column![
                     row![
@@ -93,8 +80,8 @@ impl MemoryDetails {
                     row![
                         text(format!(
                             "{:.2} / {:.2} GB",
-                            self.swap_usage as f64 / 1024. / 1024. / 1024.,
-                            self.swap_total as f64 / 1024. / 1024. / 1024.
+                            data.swap_usage as f64 / 1024. / 1024. / 1024.,
+                            data.swap_total as f64 / 1024. / 1024. / 1024.
                         )),
                         /* use a dot like with lists */ text(String::from(" • ")),
                         text(format!("{}%", swap_percent))

@@ -1,6 +1,6 @@
-pub mod memory_details;
-pub mod applications_details;
+pub mod memory_page;
+pub mod applications_page;
 pub mod chart;
-pub mod disk_details;
-pub mod cpu_details;
+pub mod disk_page;
+pub mod cpu_page;
 pub mod resource_details;
