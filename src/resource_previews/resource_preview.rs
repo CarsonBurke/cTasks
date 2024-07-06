@@ -2,11 +2,11 @@ use std::ffi::OsString;
 
 use iced::Element;
 
-use crate::ResourceType;
+use crate::{ActivePreview, ResourceType};
 
 #[derive(Debug, Clone)]
 pub enum ResourcePreviewMessage {
-    ResourceDetailsFor(String, ResourceType),
+    ResourceDetailsFor(ActivePreview),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

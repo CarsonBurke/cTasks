@@ -30,46 +30,18 @@ pub enum DiskDetailsMessage {
 }
 
 #[derive(Debug)]
-pub struct DiskDetails {
-    read: u64,
-    written: u64,
-    space_total: u64,
-    space_used: u64,
-    kind: DiskKind,
-    name: String,
+pub struct 
+DiskPage {
     written_chart: ResourceChart,
     read_chart: ResourceChart,
-    is_removable: bool,
 }
 
-impl DiskDetails {
+impl DiskPage {
     pub fn new(preferences: &Preferences) -> Self {
         Self {
-            read: 0,
-            written: 0,
-            space_total: 0,
-            space_used: 0,
-            kind: DiskKind::Unknown(0),
-            name: String::new(),
-            is_removable: false,
             written_chart: ResourceChart::new(&preferences),
             read_chart: ResourceChart::new(&preferences),
         }
-    }
-
-    pub fn on_tick(&mut self, disk_data: &DiskData) {
-        self.read = disk_data.read;
-        self.written = disk_data.written;
-        self.space_total = disk_data.space_total;
-        self.space_used = disk_data.space_used;
-        self.kind = disk_data.kind;
-        self.name = disk_data.name.clone();
-        self.is_removable = disk_data.in_depth.is_removable;
-
-        // requires history
-
-        // self.written_chart;
-        // self.read_chart;
     }
 
     pub fn update(&mut self, message: DiskDetailsMessage) -> Command<DiskDetailsMessage> {
@@ -79,8 +51,8 @@ impl DiskDetails {
     }
 
     // For some reason it won't let me use ResourceDiskMessage
-    pub fn view(&self, preferences: &Preferences) -> Element<DiskDetailsMessage> {
-        let header = container(row![text(self.name.clone())])
+    pub fn view(&self, preferences: &Preferences, disk_data: &DiskData) -> Element<DiskDetailsMessage> {
+        let header = container(row![text(disk_data.name.clone())])
             .center_x()
             .style(resource_details_header())
             .width(Length::Fill)
@@ -102,7 +74,7 @@ impl DiskDetails {
                     seperator_background_1(),
                     split_table_single(vec![(
                         text("Reads".to_string()),
-                        text(format_bytes(preferences, self.read as f32))
+                        text(format_bytes(preferences, disk_data.read as f32))
                     )]),
                 ]
             },
@@ -124,7 +96,7 @@ impl DiskDetails {
                     seperator_background_1(),
                     split_table_single(vec![(
                         text("Writes".to_string()),
-                        text(format_bytes(preferences, self.written as f32))
+                        text(format_bytes(preferences, disk_data.written as f32))
                     )]),
                 ]
             },
@@ -154,7 +126,7 @@ impl DiskDetails {
                         (
                             text("Usage".to_string()),
                             text({
-                                let result = round_bytes_list(preferences, vec![self.space_used as f32, self.space_total as f32]);
+                                let result = round_bytes_list(preferences, vec![disk_data.space_used as f32, disk_data.space_total as f32]);
 
                                 format!("{} / {} {}", result.0[0], result.0[1], result.1)
                             })
@@ -163,7 +135,7 @@ impl DiskDetails {
                             text("Percent used".to_string()),
                             text(format!(
                                 "{:.1}%",
-                                self.space_used as f64 / self.space_total as f64 * 100.
+                                disk_data.space_used as f64 / disk_data.space_total as f64 * 100.
                             ))
                         )
                     ),
@@ -172,14 +144,14 @@ impl DiskDetails {
                             text("Free space".to_string()),
                             text(format_bytes(
                                 preferences,
-                                self.space_total as f32 - self.space_used as f32
+                                disk_data.space_total as f32 - disk_data.space_used as f32
                             ))
                         ),
                         (
                             text("Percent remaining".to_string()),
                             text(format!(
                                 "{:.1}%",
-                                (1. - self.space_used as f64 / self.space_total as f64) * 100.
+                                (1. - disk_data.space_used as f64 / disk_data.space_total as f64) * 100.
                             ))
                         )
                     )
@@ -187,10 +159,10 @@ impl DiskDetails {
                 seperator_background_1(),
                 split_table_single(vec![
                     (text(String::from("Brand")), text(String::from("Unknown"))),
-                    (text(String::from("Kind")), text(format!("{}", self.kind))),
+                    (text(String::from("Kind")), text(format!("{}", disk_data.kind))),
                     (
                         text(String::from("Removable")),
-                        text(format!("{}", self.is_removable))
+                        text(format!("{}", disk_data.in_depth.as_ref().unwrap().is_removable))
                     ),
                 ])
             ],

@@ -40,11 +40,12 @@ use iced_aw::{
     split, BootstrapIcon, FloatingElement, NerdIcon, Spinner, NERD_FONT,
 };
 use preferences::Preferences;
-use resource_details::{
-    disk_details::{DiskDetails, DiskDetailsMessage},
+use resource_pages::{
+    disk_details::{DiskPage, DiskDetailsMessage},
     resource_details::{ResourceDetails, ResourceDetailsMessage},
 };
-use resource_previews::{disk_preview::DiskPreview, resource_preview::ResourcePreviewMessage};
+
+use resource_previews::{cpu_preview::CpuPreview, disk_preview::DiskPreview, resource_preview::ResourcePreviewMessage};
 use sidebar::sidebar_item::{SidebarItemParent, SidebarItemParentMessage};
 use styles::container::{main_content, sidebar};
 use sysinfo::{
@@ -59,11 +60,11 @@ use crate::{
 mod constants;
 mod general_widgets;
 mod preferences;
-mod resource_details;
 mod resource_previews;
 mod sidebar;
 mod styles;
 mod utils;
+mod resource_pages;
 
 pub fn main() -> iced::Result {
     // let image = Image::load_from_memory(ICON).unwrap();
@@ -131,15 +132,16 @@ impl ResourceHistory {
 
 #[derive(Debug, Default)]
 pub struct ResourcePreviews {
+    pub cpu: CpuPreview,
     pub disks: HashMap<String, DiskPreview>,
 }
 
 #[derive(Debug)]
-pub struct ResourcesDetails {
-    pub disks: HashMap<String, DiskDetails>,
+pub struct ResourcePages {
+    pub disks: HashMap<String, DiskPage>,
 }
 
-impl ResourcesDetails {
+impl ResourcePages {
     fn new() -> Self {
         Self {
             disks: HashMap::new(),
@@ -148,8 +150,41 @@ impl ResourcesDetails {
 }
 
 #[derive(Debug)]
-pub struct DiskDataInDepth {
-    pub is_removable: bool,
+pub struct CpuData {
+    pub cpu_usage_percent: f32,
+    pub in_depth: CpuDataInDepth,
+}
+
+impl CpuData {
+    fn new() -> Self {
+        Self {
+            cpu_usage_percent: 0.0,
+            in_depth: CpuDataInDepth::new(),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct CpuDataInDepth {
+    pub physical_core_count: u32,
+    pub logical_core_count: u32,
+    pub brand: String,
+    pub frequency: u64,
+    pub logical_cores_usage_percents: Vec<f32>,
+    pub logical_cores_frequencies: Vec<u64>,
+}
+
+impl CpuDataInDepth {
+    fn new() -> Self {
+        Self {
+            physical_core_count: 0,
+            logical_core_count: 0,
+            brand: String::new(),
+            frequency: 0,
+            logical_cores_usage_percents: vec![],
+            logical_cores_frequencies: vec![],
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -160,7 +195,7 @@ pub struct DiskData {
     pub name: String,
     pub space_total: u64,
     pub space_used: u64,
-    pub in_depth: DiskDataInDepth,
+    pub in_depth: Option<DiskDataInDepth>,
 }
 
 impl DiskData {
@@ -172,11 +207,16 @@ impl DiskData {
             space_total: 0,
             space_used: 0,
             kind: DiskKind::Unknown(0),
-            in_depth: DiskDataInDepth {
+            in_depth: Some(DiskDataInDepth {
                 is_removable: false,
-            },
+            }),
         }
     }
+}
+
+#[derive(Debug)]
+pub struct DiskDataInDepth {
+    pub is_removable: bool,
 }
 
 #[derive(Debug)]
@@ -205,6 +245,7 @@ pub struct BatteryData {
 pub struct ResourceData {
     pub disks: HashMap<String, DiskData>,
     pub batteries: HashMap<String, BatteryData>,
+    pub cpu: Option<CpuData>,
 }
 
 impl ResourceData {
@@ -212,9 +253,12 @@ impl ResourceData {
         Self {
             disks: HashMap::new(),
             batteries: HashMap::new(),
+            cpu: Some(CpuData::new()),
         }
     }
 }
+
+//
 
 #[derive(Debug, Clone)]
 pub enum ResourceDetailsMessageNew {
@@ -245,7 +289,12 @@ enum AppState {
     Loaded,
 }
 
-pub type ActivePreview = (String, ResourceType);
+#[derive(Debug, Clone)]
+pub struct ActivePreview {
+    pub resource: ResourceType,
+    // A identifying name if there are multiple devices of the resource type
+    pub name: Option<String>,
+}
 
 #[derive(Debug)]
 struct App {
@@ -270,7 +319,7 @@ struct App {
     resource_history: ResourceHistory,
     resource_data: ResourceData,
     previews: ResourcePreviews,
-    resources_details: ResourcesDetails,
+    resources_details: ResourcePages,
     active_preview: ActivePreview,
 }
 
@@ -315,10 +364,12 @@ impl Application for App {
             resource_history: ResourceHistory::new(logical_cpu_count),
             sidebar_items: Vec::new(),
             main_content: ResourceDetails::new(&preferences, ResourceType::default()),
-            active_preview: ("0".to_string(), ResourceType::default()),
+            active_preview: ActivePreview {
+                resource: ResourceType::default(),
+            name: None,},
             resource_data: ResourceData::new(),
             previews: ResourcePreviews::default(),
-            resources_details: ResourcesDetails::new(),
+            resources_details: ResourcePages::new(),
             disk_info: Disks::new(),
             network_info: Networks::new(),
             cpu_frequency: 0,
@@ -422,19 +473,13 @@ impl Application for App {
                             // Update and construct disk previews and details
 
                             for (_, disk_data) in &self.resource_data.disks {
-                                if let Some(details) =
-                                    self.resources_details.disks.get_mut(&disk_data.name)
-                                {
-                                    details.on_tick(disk_data);
-                                } else {
-                                    let mut new_details = DiskDetails::new(&self.preferences);
-
-                                    new_details.on_tick(disk_data);
+                                if self.resources_details.disks.get_mut(&disk_data.name).is_none() {
+                                    let mut new_details = DiskPage::new(&self.preferences);
 
                                     self.resources_details
                                         .disks
                                         .insert(disk_data.name.clone(), new_details);
-                                }
+                                };
 
                                 if let Some(preview) = self.previews.disks.get_mut(&disk_data.name)
                                 {
@@ -449,6 +494,38 @@ impl Application for App {
                                         .insert(disk_data.name.clone(), new_preview);
                                 }
                             }
+
+                            // cpu
+
+                            let cpu_info = self.system_info.cpus();
+
+                            // Update and construct cpu data
+
+                            /* if self.resources_details.cpu.is_none() {
+
+                            }
+
+                            for disk in &self.resource_data.cpu {
+                                let disk_name =
+                                    disk.name().to_str().unwrap_or("default").to_string();
+
+                                if let Some(disk_data) =
+                                    self.resource_data.disks.get_mut(&disk_name)
+                                {
+                                    update_disk_data(disk_data, &disk_name, disk);
+                                    continue;
+                                };
+
+                                let mut new_disk_data = DiskData::new();
+
+                                update_disk_data(&mut new_disk_data, &disk_name, disk);
+
+                                self.resource_data.disks.insert(disk_name, new_disk_data);
+                            } */
+
+                           match self.active_preview {
+                            _ => {}
+                           }
 
                             // cpu usage
 
@@ -632,16 +709,16 @@ impl Application for App {
                         }
                         AppMessage::ResourcePreviewMessage(preview_message) => {
                             match preview_message {
-                                ResourcePreviewMessage::ResourceDetailsFor(key, resource) => {
+                                ResourcePreviewMessage::ResourceDetailsFor(active_preview) => {
                                     // We also need a way to toggle this off, ideally not being super complicated
                                     // if let Some(preview) = self.previews.disks.get_mut(&key) {
                                     //     preview.display_state = ResourcePreviewDisplayState::Active;
                                     // };
 
-                                    self.active_preview = (key, resource);
+                                    self.active_preview = ActivePreview{resource: active_preview.resource, name: active_preview.name};
 
                                     self.main_content
-                                        .apply_resource_type(resource, &self.preferences)
+                                        .apply_resource_type(active_preview.resource, &self.preferences)
                                 }
                             }
                         }
@@ -773,16 +850,23 @@ impl Application for App {
                 //     .padding(padding::MAIN);
 
                 let main_new = container({
-                    let preview: Element<_> = match self.active_preview.1 {
+                    let preview: Element<_> = match self.active_preview.resource {
                         ResourceType::Disk => {
+
+                            let active_preview_name = &self.active_preview.name.as_ref().unwrap();
+
                             let Some(details) =
-                                self.resources_details.disks.get(&self.active_preview.0)
+                                self.resources_details.disks.get(active_preview_name.as_str())
                             else {
                                 return text(String::from("Error: details failed to load")).into();
                             };
 
+                            let Some(data) = self.resource_data.disks.get(active_preview_name.as_str()) else {
+                                return text(format!("Error: failed to access data for disk {}", active_preview_name.as_str())).into()
+                            };
+
                             details
-                                .view(&self.preferences)
+                                .view(&self.preferences, data)
                                 .map(move |message| {
                                     AppMessage::ResourceDetailsMessageNew(
                                         ResourceDetailsMessageNew::DiskDetailsMessage(message),
@@ -835,7 +919,7 @@ impl Application for App {
                 iced::theme::Palette {
                     success: Color::from_rgb(46. / 255., 194. / 255., 126. / 255.),
                     danger: Color::from_rgb(244. / 255., 27. / 255., 36. / 255.),
-                    text: Color::from_rgb(255. / 255., 255. / 255., 255. / 255.),
+                    text: Color::from_rgb(1., 1., 1.),
                     // primary: Color::from_rgb(30. / 255., 30. / 255., 30. / 255.),
                     primary: Color::from_rgb(0.21, 0.52, 0.89),
                     background: Color::from_rgb(42. / 255., 42. / 255., 42. / 255.),
@@ -846,7 +930,7 @@ impl Application for App {
                 iced::theme::Palette {
                     success: Color::from_rgb(46. / 255., 194. / 255., 126. / 255.),
                     danger: Color::from_rgb(244. / 255., 27. / 255., 36. / 255.),
-                    text: Color::from_rgb(255. / 255., 255. / 255., 255. / 255.),
+                    text: Color::from_rgb(1., 1., 1.),
                     // primary: Color::from_rgb(30. / 255., 30. / 255., 30. / 255.),
                     primary: Color::from_rgb(0.21, 0.52, 0.89),
                     background: Color::from_rgb(42. / 255., 42. / 255., 42. / 255.),
@@ -882,5 +966,17 @@ pub fn update_disk_data(disk_data: &mut DiskData, disk_name: &String, disk: &Dis
 
 pub fn update_disk_data_in_depth(disk_data: &mut DiskData, disk_name: &String, disk: &Disk) {
 
-    disk_data.in_depth.is_removable = disk.is_removable();
+    let in_depth = DiskDataInDepth {
+        is_removable: disk.is_removable(),
+    };
+
+    disk_data.in_depth = Some(in_depth);
+}
+
+pub fn update_cpu_data(cpu_data: &mut CpuData) {
+
+}
+
+pub fn update_cpu_data_in_depth(cpu_data: &mut CpuData) {
+
 }

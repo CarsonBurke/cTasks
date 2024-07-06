@@ -45,8 +45,43 @@ use crate::{
 use super::{
     applications_details::{ApplicationsDetails, ApplicationsDetailsMessage},
     chart::{ResourceChart, ResourceChartMessage},
-    memory_detail::{self, MemoryDetails, MemoryDetailsMessage},
+    memory_details::{self, MemoryDetails, MemoryDetailsMessage},
 };
+
+#[derive(Debug)]
+pub struct DiskDetails {
+    pub read_bytes: u64,
+    pub written_bytes: u64,
+    pub total_space: u64,
+    pub total_used: u64,
+    pub is_removable: bool,
+    pub kind: DiskKind,
+    pub written_chart: ResourceChart,
+    pub read_chart: ResourceChart,
+}
+
+#[derive(Debug)]
+pub struct CpuDetails {
+    pub cpu_usage_percent: f32,
+    pub physical_core_count: u32,
+    pub logical_core_count: u32,
+    pub cpu_chart: ResourceChart,
+    pub brand: String,
+    pub frequency: u64,
+    pub logical_core_charts: Vec<ResourceChart>,
+    pub logical_cores_usage_percents: Vec<f32>,
+    pub logical_cores_frequencies: Vec<u64>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum ResourceDetailsMessage {
+    KillProcessId(Pid),
+    SortByIndex(u32),
+    SwitchSortDirection,
+    ChangeSwapiness,
+    ToggleLogicalCores(bool),
+    ResourceChartMessage(ResourceChartMessage),
+}
 
 #[derive(Debug)]
 pub struct ProcessDetails {
@@ -104,41 +139,6 @@ impl ProcessesDetailsProcs {
             SortDirection::Ascending => {}
         };
     }
-}
-
-#[derive(Debug)]
-pub struct DiskDetails {
-    pub read_bytes: u64,
-    pub written_bytes: u64,
-    pub total_space: u64,
-    pub total_used: u64,
-    pub is_removable: bool,
-    pub kind: DiskKind,
-    pub written_chart: ResourceChart,
-    pub read_chart: ResourceChart,
-}
-
-#[derive(Debug)]
-pub struct CpuDetails {
-    pub cpu_usage_percent: f32,
-    pub physical_core_count: u32,
-    pub logical_core_count: u32,
-    pub cpu_chart: ResourceChart,
-    pub brand: String,
-    pub frequency: u64,
-    pub logical_core_charts: Vec<ResourceChart>,
-    pub logical_cores_usage_percents: Vec<f32>,
-    pub logical_cores_frequencies: Vec<u64>,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum ResourceDetailsMessage {
-    KillProcessId(Pid),
-    SortByIndex(u32),
-    SwitchSortDirection,
-    ChangeSwapiness,
-    ToggleLogicalCores(bool),
-    ResourceChartMessage(ResourceChartMessage),
 }
 
 // pub type ResourceDetailsElements = MemoryDetails & ApplicationsDetails;
@@ -340,26 +340,7 @@ impl ResourceDetails {
             }
             ResourceType::Gpu => {}
             ResourceType::Disk => {
-                for disk_details in &mut self.disks_details {
-                    let Some(disk_details) = disk_details else {
-                        continue;
-                    };
-
-                    let Some(disk_data) = resource_data.disks.get(&active_preview.0) else {
-                        continue;
-                    };
-
-                    // We should not be initializing here.
-
-                    disk_details.read_bytes = disk_data.read;
-                    disk_details.written_bytes = disk_data.written;
-                    disk_details.total_space = disk_data.space_total;
-                    disk_details.total_used = disk_data.space_used;
-                    disk_details.is_removable = disk_data.in_depth.is_removable;
-                    disk_details.kind = disk_data.kind;
-                    disk_details.written_chart = ResourceChart::new(preferences);
-                    disk_details.read_chart = ResourceChart::new(preferences);
-                }
+                
             }
             ResourceType::Wifi => {}
             ResourceType::Ethernet => {}

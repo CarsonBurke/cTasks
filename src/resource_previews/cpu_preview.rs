@@ -1,5 +1,3 @@
-use std::ffi::OsString;
-
 use iced::{
     theme,
     widget::{button, column, container, progress_bar, row, text},
@@ -9,8 +7,12 @@ use iced_aw::BootstrapIcon;
 use sysinfo::{Disk, DiskKind};
 
 use crate::{
-    constants::padding, general_widgets::icons::bootstrap_icon, preferences::Preferences, styles,
-    utils::format_bytes, ActivePreview, DiskData, ResourceType,
+    constants::padding,
+    general_widgets::icons::bootstrap_icon,
+    preferences::Preferences,
+    styles,
+    ActivePreview, DiskData, ResourceType,
+    utils::format_bytes,
 };
 
 use super::{
@@ -19,7 +21,7 @@ use super::{
 };
 
 #[derive(Debug)]
-pub struct DiskPreview {
+pub struct CpuPreview {
     pub resource: ResourceType,
     pub disk_name: String,
     pub disk_size: u64,
@@ -30,7 +32,7 @@ pub struct DiskPreview {
     pub display_state: ResourcePreviewDisplayState,
 }
 
-impl Default for DiskPreview {
+impl Default for CpuPreview {
     fn default() -> Self {
         Self {
             resource: ResourceType::Disk,
@@ -45,7 +47,7 @@ impl Default for DiskPreview {
     }
 }
 
-impl DiskPreview {
+impl CpuPreview {
     pub fn new() -> Self {
         Self {
             ..Default::default()
