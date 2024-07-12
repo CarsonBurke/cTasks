@@ -9,7 +9,7 @@ pub enum ApplicationsPageMessage {
     ResourceChartMessage(ResourceChartMessage),
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct ApplicationsPage {
     written_chart: ResourceChart,
     read_chart: ResourceChart,

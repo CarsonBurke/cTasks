@@ -51,9 +51,9 @@ use sysinfo::{
     Cpu, CpuRefreshKind, Disk, DiskKind, Disks, MemoryRefreshKind, Networks, Pid, ProcessRefreshKind, RefreshKind, System, UpdateKind
 };
 
-use crate::{
-    constants::HISTORY_TICKS, resource_previews::resource_preview::ResourcePreviewDisplayState,
-};
+use crate::
+    constants::HISTORY_TICKS
+;
 
 mod constants;
 mod general_widgets;
@@ -81,7 +81,7 @@ pub fn main() -> iced::Result {
         ..Default::default()
     };
 
-    // env::set_var("RUST_BACKTRACE", "1");
+    env::set_var("RUST_BACKTRACE", "1");
     App::run(settings)
 }
 
@@ -307,11 +307,6 @@ pub enum ResourcePageMessage {
     ApplicationsPageMessage(ApplicationsPageMessage),
 }
 
-pub enum AppPages {
-    Resources,
-    Preferences,
-}
-
 #[derive(Debug, Clone)]
 enum AppMessage {
     FontLoaded(Result<(), font::Error>),
@@ -342,12 +337,10 @@ pub struct ActivePreview {
 struct App {
     sidebar_items: Vec<SidebarItemParent>,
     preferences: Preferences,
-    main_content: ResourcePage,
+    resource_page: ResourcePage,
     tick_interval: u64,
     system_info: System,
-    physical_cpu_count: u32,
     logical_core_count: u32,
-    cpu_brand: String,
     cpu_frequency: u64,
     disk_info: Disks,
     network_info: Networks,
@@ -361,6 +354,7 @@ struct App {
     resource_history: ResourceHistory,
     resource_data: ResourceData,
     previews: ResourcePreviews,
+    #[deprecated]
     resources_details: ResourcePages,
     active_preview: ActivePreview,
 }
@@ -397,15 +391,13 @@ impl Application for App {
             state: AppState::Loading,
             preferences,
             system_info,
-            physical_cpu_count,
             logical_core_count: logical_cpu_count,
             tick: 0,
-            cpu_brand,
             logical_cores_usage_percent,
             logical_cores_frequencies,
             resource_history: ResourceHistory::new(logical_cpu_count),
             sidebar_items: Vec::new(),
-            main_content: ResourcePage::Cpu(CpuPage::new(&preferences)),
+            resource_page: ResourcePage::Cpu(CpuPage::new(&preferences)),
             active_preview: ActivePreview {
                 resource: ResourceType::default(),
             name: None,},
@@ -902,22 +894,36 @@ impl Application for App {
                 //     .padding(padding::MAIN);
 
                 let main_new = container({
-                    let preview: Element<_> = match self.active_preview.resource {
-                        ResourceType::Disk => {
+                    let preview: Element<_> = match &self.resource_page {
+                        ResourcePage::Disk(disk_page) => {
 
                             let active_preview_name = &self.active_preview.name.as_ref().unwrap();
-
-                            let Some(details) =
-                                self.resources_details.disks.get(active_preview_name.as_str())
-                            else {
-                                return text(String::from("Error: details failed to load")).into();
-                            };
 
                             let Some(data) = self.resource_data.disks.get(active_preview_name.as_str()) else {
                                 return text(format!("Error: failed to access data for disk {}", active_preview_name.as_str())).into()
                             };
 
-                            details
+                            disk_page
+                                .view(&self.preferences, data)
+                                .map(move |message| {
+                                    AppMessage::ResourcePageMessage(
+                                        ResourcePageMessage::DiskPageMessage(message),
+                                    )
+                                })
+                        }
+                        _ => text(String::from("Error: failed to match resource")).into(),
+                    };
+                    
+                    /* match self.active_preview.resource {
+                        ResourceType::Disk => {
+
+                            let active_preview_name = &self.active_preview.name.as_ref().unwrap();
+
+                            let Some(data) = self.resource_data.disks.get(active_preview_name.as_str()) else {
+                                return text(format!("Error: failed to access data for disk {}", active_preview_name.as_str())).into()
+                            };
+
+                            self.resource_page
                                 .view(&self.preferences, data)
                                 .map(move |message| {
                                     AppMessage::ResourcePageMessage(
@@ -927,30 +933,14 @@ impl Application for App {
                                 .into()
                         }
                         _ => text(String::from("Error: failed to match resource")).into(),
-                    };
+                    }; */
 
                     preview
                 })
                 .style(main_content());
 
-                let main = container(
-                    //                    Scrollable::new(
-                    /* column![self
-                        .main_content
-                        .view(&self.preferences)
-                        .map(move |message| AppMessage::ResourceDetailsMessage(message))]
-                    .spacing(10), */
-                    row![],
-                    // )
-                    // .direction(Direction::Vertical(Properties::default())),
-                )
-                .style(main_content())
-                .width(Length::Fill)
-                .height(Length::Fill)
-                .center_x();
-
                 let left = sidebar;
-                let right = column![/* header, */ main_new, main /* footer */,]
+                let right = column![/* header, */ main_new /* footer */]
                     .width(Length::FillPortion(3));
 
                 let container = container(
@@ -1004,6 +994,20 @@ pub enum ResourceType {
     Disk,
     Wifi,
     Ethernet,
+}
+
+/// Updates the resource page without checking if it is already the desired page
+fn update_resource_page_unchecked(app: &mut App) {
+    match app.active_preview.resource {
+        ResourceType::Disk => {
+            app.resource_page = ResourcePage::Disk(DiskPage::new(&app.preferences));
+
+
+        }
+        _ => {
+            println!("resource type not yet supported for resource page switching")
+        }
+    }
 }
 
 pub fn update_disk_data(disk_data: &mut DiskData, disk_name: &String, disk: &Disk) {
