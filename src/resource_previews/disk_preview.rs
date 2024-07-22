@@ -99,7 +99,7 @@ impl DiskPreview {
             }))
             .style(iced::theme::Button::Custom(Box::new(
                 styles::button::Background3Blended {
-                    display_as_pressed: active_preview.name.as_ref().unwrap() == &self.disk_name
+                    display_as_pressed: active_preview.name.as_ref() == Some(&self.disk_name)
                         && active_preview.resource == self.resource,
                 },
             )));
