@@ -1,5 +1,5 @@
 use iced::{
-    widget::{column, container, progress_bar, row, text},
+    widget::{column, container, progress_bar, row, scrollable, text},
     Alignment, Element, Length,
 };
 use iced_aw::BootstrapIcon;
@@ -42,17 +42,9 @@ impl SidebarItemParent {
         let (usage_percent, metric): (Option<f32>, Option<String>) = match self.resource {
             ResourceType::Applications => (None, None),
             ResourceType::Processes => {
-
                 let processes = system_info.processes();
 
                 (None, Some(processes.len().to_string()))
-            }
-            ResourceType::Cpu => {
-                let usage_percent = cpu_usage_percent;
-                self.usage_percent = Some(usage_percent);
-                self.metric = Some(format!("{:.1}%", usage_percent));
-
-                (Some(usage_percent), Some(format!("{:.1}%", usage_percent)))
             }
             ResourceType::Memory => {
                 let usage_percent = memory_usage_percent;
@@ -60,9 +52,6 @@ impl SidebarItemParent {
                 (Some(usage_percent), Some(format!("{:.1}%", usage_percent)))
             }
             ResourceType::Gpu => (None, None),
-            ResourceType::Disk => {
-                (None, None)
-            }
             ResourceType::Wifi => {
                 let mut total_received = 0;
                 let mut total_transmitted = 0;
@@ -78,6 +67,7 @@ impl SidebarItemParent {
                 )
             }
             ResourceType::Ethernet => (None, None),
+            _ => (None, None),
         };
 
         self.usage_percent = usage_percent;
@@ -88,23 +78,21 @@ impl SidebarItemParent {
         match self.resource {
             ResourceType::Applications => String::from(BootstrapIcon::WindowStack),
             ResourceType::Processes => String::from(BootstrapIcon::PersonWorkspace),
-            ResourceType::Cpu => String::from(BootstrapIcon::Cpu),
             ResourceType::Memory => String::from(BootstrapIcon::Memory),
             ResourceType::Gpu => String::from(BootstrapIcon::GpuCard),
-            ResourceType::Disk => String::from(BootstrapIcon::Hdd),
             ResourceType::Wifi => String::from(BootstrapIcon::Wifi),
             ResourceType::Ethernet => String::from(BootstrapIcon::DiagramTwo),
+            _ => String::from(BootstrapIcon::Apple),
         };
 
         let icon_text = match self.resource {
             ResourceType::Applications => String::from(BootstrapIcon::WindowStack),
             ResourceType::Processes => String::from(BootstrapIcon::PersonWorkspace),
-            ResourceType::Cpu => String::from(BootstrapIcon::Cpu),
             ResourceType::Memory => String::from(BootstrapIcon::Memory),
             ResourceType::Gpu => String::from(BootstrapIcon::GpuCard),
-            ResourceType::Disk => String::from(BootstrapIcon::Hdd),
             ResourceType::Wifi => String::from(BootstrapIcon::Wifi),
             ResourceType::Ethernet => String::from(BootstrapIcon::DiagramTwo),
+            _ => String::from(BootstrapIcon::Apple),
         };
 
         let preview_state = {
@@ -138,6 +126,7 @@ impl SidebarItemParent {
             ]
             .spacing(5),
         );
+
         container.into()
     }
 }

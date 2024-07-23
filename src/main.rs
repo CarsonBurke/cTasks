@@ -41,28 +41,35 @@ use iced_aw::{
 };
 use preferences::Preferences;
 use resource_pages::{
-    applications_page::{ApplicationsPage, ApplicationsPageMessage}, cpu_page::{CpuPage, CpuPageMessage}, disk_page::{DiskPage, DiskPageMessage}, memory_page::{MemoryPage, MemoryPageMessage}, resource_details::{ResourceDetails, ResourceDetailsMessage}
+    applications_page::{ApplicationsPage, ApplicationsPageMessage},
+    cpu_page::{CpuPage, CpuPageMessage},
+    disk_page::{DiskPage, DiskPageMessage},
+    memory_page::{MemoryPage, MemoryPageMessage},
+    resource_details::{ResourceDetails, ResourceDetailsMessage},
 };
 
-use resource_previews::{cpu_preview::CpuPreview, disk_preview::DiskPreview, resource_preview::ResourcePreviewMessage};
+use resource_previews::{
+    cpu_preview::{self, CpuPreview},
+    disk_preview::DiskPreview,
+    resource_preview::ResourcePreviewMessage,
+};
 use sidebar::sidebar_item::{SidebarItemParent, SidebarItemParentMessage};
 use styles::container::{main_content, sidebar};
 use sysinfo::{
-    Cpu, CpuRefreshKind, Disk, DiskKind, Disks, MemoryRefreshKind, Networks, Pid, ProcessRefreshKind, RefreshKind, System, UpdateKind
+    Cpu, CpuRefreshKind, Disk, DiskKind, Disks, MemoryRefreshKind, Networks, Pid,
+    ProcessRefreshKind, RefreshKind, System, UpdateKind,
 };
 
-use crate::
-    constants::HISTORY_TICKS
-;
+use crate::constants::HISTORY_TICKS;
 
 mod constants;
 mod general_widgets;
 mod preferences;
+mod resource_pages;
 mod resource_previews;
 mod sidebar;
 mod styles;
 mod utils;
-mod resource_pages;
 
 pub fn main() -> iced::Result {
     // let image = Image::load_from_memory(ICON).unwrap();
@@ -159,34 +166,15 @@ impl ResourcePages {
 #[derive(Debug)]
 pub struct CpuData {
     pub cpu_usage_percent: f32,
-    pub in_depth: CpuDataInDepth,
+    pub frequency: u64,
+    pub logical_cores_usage_percents: Vec<f32>,
+    pub logical_cores_frequencies: Vec<u64>,
 }
 
 impl CpuData {
     fn new() -> Self {
         Self {
             cpu_usage_percent: 0.0,
-            in_depth: CpuDataInDepth::new(),
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct CpuDataInDepth {
-    pub physical_core_count: u32,
-    pub logical_core_count: u32,
-    pub brand: String,
-    pub frequency: u64,
-    pub logical_cores_usage_percents: Vec<f32>,
-    pub logical_cores_frequencies: Vec<u64>,
-}
-
-impl CpuDataInDepth {
-    fn new() -> Self {
-        Self {
-            physical_core_count: 0,
-            logical_core_count: 0,
-            brand: String::new(),
             frequency: 0,
             logical_cores_usage_percents: vec![],
             logical_cores_frequencies: vec![],
@@ -248,7 +236,6 @@ pub struct BatteryData {
     pub technology: battery::Technology,
 }
 
-
 #[derive(Debug)]
 pub struct ApplicationsData {
     pub applications_count: u32,
@@ -284,7 +271,7 @@ pub struct MemoryDataInDepth {
 pub struct ResourceData {
     pub disks: HashMap<String, DiskData>,
     pub batteries: HashMap<String, BatteryData>,
-    pub cpu: Option<CpuData>,
+    pub cpu: CpuData,
 }
 
 impl ResourceData {
@@ -292,7 +279,7 @@ impl ResourceData {
         Self {
             disks: HashMap::new(),
             batteries: HashMap::new(),
-            cpu: Some(CpuData::new()),
+            cpu: CpuData::new(),
         }
     }
 }
@@ -340,7 +327,9 @@ struct App {
     resource_page: ResourcePage,
     tick_interval: u64,
     system_info: System,
+    physical_core_count: u32,
     logical_core_count: u32,
+    cpu_brand: String,
     cpu_frequency: u64,
     disk_info: Disks,
     network_info: Networks,
@@ -371,15 +360,15 @@ impl Application for App {
 
     fn new(_flags: ()) -> (Self, Command<AppMessage>) {
         let system_info = System::new_all();
-        let physical_cpu_count = system_info.physical_core_count().unwrap_or(1) as u32/* system_info.cpus().len() as u32 */;
-        let logical_cpu_count = system_info.cpus().len() as u32;
+        let physical_core_count = system_info.physical_core_count().unwrap_or(1) as u32/* system_info.cpus().len() as u32 */;
+        let logical_core_count = system_info.cpus().len() as u32;
 
         let cpu_brand = system_info.global_cpu_info().brand().to_string();
 
         let mut logical_cores_usage_percent = Vec::new();
         let mut logical_cores_frequencies = Vec::new();
 
-        for _ in 0..logical_cpu_count {
+        for _ in 0..logical_core_count {
             logical_cores_usage_percent.push(0.);
             logical_cores_frequencies.push(0);
         }
@@ -391,16 +380,19 @@ impl Application for App {
             state: AppState::Loading,
             preferences,
             system_info,
-            logical_core_count: logical_cpu_count,
+            physical_core_count,
+            logical_core_count,
+            cpu_brand,
             tick: 0,
             logical_cores_usage_percent,
             logical_cores_frequencies,
-            resource_history: ResourceHistory::new(logical_cpu_count),
+            resource_history: ResourceHistory::new(logical_core_count),
             sidebar_items: Vec::new(),
             resource_page: ResourcePage::Cpu(CpuPage::new(&preferences)),
             active_preview: ActivePreview {
                 resource: ResourceType::default(),
-            name: None,},
+                name: None,
+            },
             resource_data: ResourceData::new(),
             previews: ResourcePreviews::default(),
             resources_details: ResourcePages::new(),
@@ -440,10 +432,8 @@ impl Application for App {
                             String::from("Applications"),
                         ),
                         SidebarItemParent::new(ResourceType::Processes, String::from("Processes")),
-                        SidebarItemParent::new(ResourceType::Cpu, String::from("Cpu")),
                         SidebarItemParent::new(ResourceType::Memory, String::from("Memory")),
                         SidebarItemParent::new(ResourceType::Gpu, String::from("Gpu")),
-                        SidebarItemParent::new(ResourceType::Disk, String::from("Disk")),
                         SidebarItemParent::new(ResourceType::Wifi, String::from("Wifi")),
                         SidebarItemParent::new(ResourceType::Ethernet, String::from("Ethernet")),
                     ];
@@ -503,22 +493,9 @@ impl Application for App {
 
                             // Update and construct disk previews and details
 
-                            for (_, disk_data) in &self.resource_data.disks {
-                                if self.resources_details.disks.get_mut(&disk_data.name).is_none() {
-                                    let mut new_details = DiskPage::new(&self.preferences);
-
-                                    self.resources_details
-                                        .disks
-                                        .insert(disk_data.name.clone(), new_details);
-                                };
-
-                                if let Some(preview) = self.previews.disks.get_mut(&disk_data.name)
-                                {
-                                    preview.on_tick(disk_data);
-                                } else {
+                            for (disk_name, disk_data) in &self.resource_data.disks {
+                                if (!self.previews.disks.get_mut(&disk_data.name).is_some()) {
                                     let mut new_preview = DiskPreview::new();
-
-                                    new_preview.on_tick(disk_data);
 
                                     self.previews
                                         .disks
@@ -530,33 +507,23 @@ impl Application for App {
 
                             let cpu_info = self.system_info.cpus();
 
-                            // Update and construct cpu data
+                            update_cpu_data(&mut self.resource_data.cpu, cpu_info, self.logical_core_count);
 
-                            /* if self.resources_details.cpu.is_none() {
+                            match self.active_preview.resource {
+                                ResourceType::Cpu => {
+                                    // no in-depth data to update for cpu
+                                }
+                                ResourceType::Disk => {
+                                    let disk_name = self.active_preview.name.as_ref().unwrap();
 
+                                    let disk_data =
+                                        self.resource_data.disks.get_mut(disk_name).unwrap();
+                                    /*                                     let disk = &self.disk_info.
+
+                                    update_disk_data_in_depth(&mut disk_data, &disk_name, disk) */
+                                }
+                                _ => {}
                             }
-
-                            for disk in &self.resource_data.cpu {
-                                let disk_name =
-                                    disk.name().to_str().unwrap_or("default").to_string();
-
-                                if let Some(disk_data) =
-                                    self.resource_data.disks.get_mut(&disk_name)
-                                {
-                                    update_disk_data(disk_data, &disk_name, disk);
-                                    continue;
-                                };
-
-                                let mut new_disk_data = DiskData::new();
-
-                                update_disk_data(&mut new_disk_data, &disk_name, disk);
-
-                                self.resource_data.disks.insert(disk_name, new_disk_data);
-                            } */
-
-                           match self.active_preview {
-                            _ => {}
-                           }
 
                             // cpu usage
 
@@ -689,14 +656,14 @@ impl Application for App {
                             ); */
                         }
                         AppMessage::ResourcePageMessage(resource_page_message) => {
-
                             match resource_page_message {
-                                ResourcePageMessage::DiskPageMessage(disk_page_message) => {
-
-                                }
-                                _ => {
-
-                                }
+                                ResourcePageMessage::DiskPageMessage(disk_page_message) => {}
+                                ResourcePageMessage::CpuPageMessage(cpu_page_message) => {}
+                                ResourcePageMessage::MemoryPageMessage(memory_page_message) => {}
+                                ResourcePageMessage::ApplicationsPageMessage(
+                                    applications_page_message,
+                                ) => {}
+                                _ => {}
                             }
                         }
                         AppMessage::ResourceDetailsMessage(resource_details_message) => {
@@ -757,12 +724,15 @@ impl Application for App {
                                     //     preview.display_state = ResourcePreviewDisplayState::Active;
                                     // };
 
-                                    self.active_preview = ActivePreview{resource: active_preview.resource, name: active_preview.name};
+                                    self.active_preview = ActivePreview {
+                                        resource: active_preview.resource,
+                                        name: active_preview.name,
+                                    };
 
                                     // change resource page to match preview
 
                                     /* self.main_content
-                                        .apply_resource_type(active_preview.resource, &self.preferences) */
+                                    .apply_resource_type(active_preview.resource, &self.preferences) */
                                 }
                             }
                         }
@@ -844,26 +814,45 @@ impl Application for App {
                 let sidebar_content_new = Column::with_children({
                     let mut children = Vec::new();
 
-                    for (_, disk_preview) in &self.previews.disks {
+                    children.push(
+                        self.previews
+                            .cpu
+                            .view(
+                                &self.preferences,
+                                &self.active_preview,
+                                &self.resource_data.cpu,
+                            )
+                            .map(|message| AppMessage::ResourcePreviewMessage(message)),
+                    );
+
+                    for (disk_name, disk_preview) in &self.previews.disks {
+                        let disk_data = self.resource_data.disks.get(disk_name).unwrap();
+
                         children.push(
                             disk_preview
-                                .view(&self.preferences, &self.active_preview)
+                                .view(&self.preferences, &self.active_preview, disk_data)
                                 .map(|message| AppMessage::ResourcePreviewMessage(message)),
                         );
                     }
 
                     children
-                });
+                })
+                .spacing(padding::PORTION);
 
                 let sidebar = container(
-                    column![sidebar_header, sidebar_content, sidebar_content_new].spacing(20),
+                    iced::widget::scrollable(
+                        column![sidebar_header, sidebar_content, sidebar_content_new]
+                            .spacing(20)
+                            .padding(padding::MAIN),
+                    )
+                    .style(iced::theme::Scrollable::Custom(Box::new(
+                        styles::scrollable::Background3 {},
+                    ))),
                 )
-                /* .style(theme::Container::Box) */
-                .style(sidebar())
                 .height(Length::Fill)
-                .padding(padding::MAIN)
                 .width(Length::Shrink)
-                .max_width(200);
+                .max_width(200)
+                .style(styles::container::sidebar());
 
                 // let header = container(row![
                 //     horizontal_space(),
@@ -894,26 +883,36 @@ impl Application for App {
                 //     .padding(padding::MAIN);
 
                 let main_new = container({
-                    let preview: Element<_> = match &self.resource_page {
+                    let page: Element<_> = match &self.resource_page {
+                        ResourcePage::Cpu(cpu_page) => cpu_page
+                            .view(&self.preferences, &self.resource_data.cpu, self.physical_core_count, self.logical_core_count, self.cpu_brand.clone())
+                            .map(move |message| {
+                                AppMessage::ResourcePageMessage(
+                                    ResourcePageMessage::CpuPageMessage(message),
+                                )
+                            }),
                         ResourcePage::Disk(disk_page) => {
-
                             let active_preview_name = &self.active_preview.name.as_ref().unwrap();
 
-                            let Some(data) = self.resource_data.disks.get(active_preview_name.as_str()) else {
-                                return text(format!("Error: failed to access data for disk {}", active_preview_name.as_str())).into()
+                            let Some(data) =
+                                self.resource_data.disks.get(active_preview_name.as_str())
+                            else {
+                                return text(format!(
+                                    "Error: failed to access data for disk {}",
+                                    active_preview_name.as_str()
+                                ))
+                                .into();
                             };
 
-                            disk_page
-                                .view(&self.preferences, data)
-                                .map(move |message| {
-                                    AppMessage::ResourcePageMessage(
-                                        ResourcePageMessage::DiskPageMessage(message),
-                                    )
-                                })
+                            disk_page.view(&self.preferences, data).map(move |message| {
+                                AppMessage::ResourcePageMessage(
+                                    ResourcePageMessage::DiskPageMessage(message),
+                                )
+                            })
                         }
                         _ => text(String::from("Error: failed to match resource")).into(),
                     };
-                    
+
                     /* match self.active_preview.resource {
                         ResourceType::Disk => {
 
@@ -935,19 +934,20 @@ impl Application for App {
                         _ => text(String::from("Error: failed to match resource")).into(),
                     }; */
 
-                    preview
+                    page
                 })
                 .style(main_content());
 
                 let left = sidebar;
-                let right = column![/* header, */ main_new /* footer */]
-                    .width(Length::FillPortion(3));
+                let right =
+                    column![/* header, */ main_new /* footer */].width(Length::FillPortion(3));
 
                 let container = container(
                     FloatingElement::new(row![left, right], floating_content)
                         .anchor(Anchor::SouthEast)
                         .hide(false),
-                );
+                )
+                .style(styles::container::main_content());
                 container.into()
             }
         }
@@ -1001,8 +1001,6 @@ fn update_resource_page_unchecked(app: &mut App) {
     match app.active_preview.resource {
         ResourceType::Disk => {
             app.resource_page = ResourcePage::Disk(DiskPage::new(&app.preferences));
-
-
         }
         _ => {
             println!("resource type not yet supported for resource page switching")
@@ -1020,7 +1018,6 @@ pub fn update_disk_data(disk_data: &mut DiskData, disk_name: &String, disk: &Dis
 }
 
 pub fn update_disk_data_in_depth(disk_data: &mut DiskData, disk_name: &String, disk: &Disk) {
-
     let in_depth = DiskDataInDepth {
         is_removable: disk.is_removable(),
     };
@@ -1028,10 +1025,26 @@ pub fn update_disk_data_in_depth(disk_data: &mut DiskData, disk_name: &String, d
     disk_data.in_depth = Some(in_depth);
 }
 
-pub fn update_cpu_data(cpu_data: &mut CpuData) {
+pub fn update_cpu_data(cpu_data: &mut CpuData, cpu_info: &[sysinfo::Cpu], logical_core_count: u32) {
+    let mut total_used: f32 = 0.;
+    let mut total_frequency: u64 = 0;
+    let mut logical_cores_usage_percents: Vec<f32> = Vec::new();
+    let mut logical_cores_frequencies: Vec<u64> = Vec::new();
 
-}
+    for (_, logical_core) in cpu_info.iter().enumerate() {
+        let cpu_usage = logical_core.cpu_usage();
+        let frequency = logical_core.frequency();
 
-pub fn update_cpu_data_in_depth(cpu_data: &mut CpuData) {
+        logical_cores_usage_percents.push(cpu_usage);
 
+        total_frequency += frequency;
+        logical_cores_frequencies.push(frequency);
+
+        total_used += cpu_usage;
+    }
+
+    cpu_data.cpu_usage_percent = total_used / logical_core_count as f32;
+    cpu_data.frequency = total_frequency / logical_core_count as u64;
+    cpu_data.logical_cores_usage_percents = logical_cores_usage_percents;
+    cpu_data.logical_cores_frequencies = logical_cores_frequencies;
 }

@@ -1,18 +1,11 @@
 use iced::{
-    theme,
-    widget::{button, column, container, progress_bar, row, text},
-    Element, Length,
+    alignment, theme, widget::{button, column, container, progress_bar, row, text}, Element, Length
 };
 use iced_aw::BootstrapIcon;
 use sysinfo::{Disk, DiskKind};
 
 use crate::{
-    constants::padding,
-    general_widgets::icons::bootstrap_icon,
-    preferences::Preferences,
-    styles,
-    ActivePreview, DiskData, ResourceType,
-    utils::format_bytes,
+    constants::{custom_theme, font_sizes, padding}, general_widgets::icons::bootstrap_icon, preferences::Preferences, styles, utils::format_bytes, ActivePreview, CpuData, DiskData, ResourceType
 };
 
 use super::{
@@ -23,25 +16,13 @@ use super::{
 #[derive(Debug)]
 pub struct CpuPreview {
     pub resource: ResourceType,
-    pub disk_name: String,
-    pub disk_size: u64,
-    pub disk_read: u64,
-    pub disk_written: u64,
-    pub disk_used: u64,
-    pub disk_kind: DiskKind,
     pub display_state: ResourcePreviewDisplayState,
 }
 
 impl Default for CpuPreview {
     fn default() -> Self {
         Self {
-            resource: ResourceType::Disk,
-            disk_kind: DiskKind::Unknown(0),
-            disk_name: String::new(),
-            disk_size: 0,
-            disk_used: 0,
-            disk_read: 0,
-            disk_written: 0,
+            resource: ResourceType::Cpu,
             display_state: ResourcePreviewDisplayState::Shown,
         }
     }
@@ -54,55 +35,38 @@ impl CpuPreview {
         }
     }
 
-    pub fn on_tick(&mut self, disk_data: &DiskData) {
-        self.disk_name = disk_data.name.clone()/* .to_str().unwrap_or("no name").to_string() */;
-        self.disk_size = disk_data.space_total;
-        self.disk_used = disk_data.space_used;
-        self.disk_read = disk_data.read;
-        self.disk_written = disk_data.written;
-        self.disk_kind = disk_data.kind;
-    }
-
     pub fn view(
         &self,
         preferences: &Preferences,
         active_preview: &ActivePreview,
+        data: &CpuData,
     ) -> Element<ResourcePreviewMessage> {
         let content = column![
-            preview_header(
-                bootstrap_icon(BootstrapIcon::Hdd),
-                text(format!(
-                    "{} {}",
-                    format_bytes(preferences, self.disk_size as f32),
-                    self.disk_kind
-                ))
-            ),
-            preview_metrics(vec![
-                (
-                    bootstrap_icon(BootstrapIcon::Eye),
-                    text(format_bytes(preferences, self.disk_read as f32)),
+            row![
+                preview_header(
+                    bootstrap_icon(BootstrapIcon::Cpu),
+                    text("Cpu").size(font_sizes::H2)
                 ),
-                (
-                    bootstrap_icon(BootstrapIcon::Pen),
-                    text(format_bytes(preferences, self.disk_written as f32)),
-                )
-            ]),
-            progress_bar(0.0..=1., self.disk_used as f32 / self.disk_size as f32)
+                text(format!("{:.1}%", data.cpu_usage_percent))
+                    .style(theme::Text::Color(custom_theme::GREY_TEXT))
+                    .size(font_sizes::P),
+            ]
+            .spacing(padding::PORTION).align_items(iced::Alignment::Center),
+            progress_bar(0.0..=100., data.cpu_usage_percent)
                 .height(5)
                 .width(Length::Fill)
                 .style(|_: &_| styles::progress_bar::primary_background_5())
         ]
-        .spacing(padding::PORTION);
+        .spacing(padding::PORTION).padding(padding::PORTION);
 
         let button = button(content)
             .on_press(ResourcePreviewMessage::ResourceDetailsFor(ActivePreview {
                 resource: self.resource,
-                name: Some(self.disk_name.clone()),
+                name: None,
             }))
             .style(iced::theme::Button::Custom(Box::new(
                 styles::button::Background3Blended {
-                    display_as_pressed: active_preview.name.as_ref().unwrap() == &self.disk_name
-                        && active_preview.resource == self.resource,
+                    display_as_pressed: active_preview.resource == self.resource,
                 },
             )));
 
