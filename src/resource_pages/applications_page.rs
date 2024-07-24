@@ -11,15 +11,13 @@ pub enum ApplicationsPageMessage {
 
 #[derive(Debug)]
 pub struct ApplicationsPage {
-    written_chart: ResourceChart,
-    read_chart: ResourceChart,
+    
 }
 
 impl ApplicationsPage {
     pub fn new(preferences: &Preferences) -> Self {
         Self {
-            written_chart: ResourceChart::new(preferences),
-            read_chart: ResourceChart::new(preferences),
+            
         }
     }
 

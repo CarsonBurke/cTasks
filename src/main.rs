@@ -373,6 +373,8 @@ impl Application for App {
                             }
                         }
 
+                        // applications
+
                         // cpu
                         self.resource_data
                             .cpu

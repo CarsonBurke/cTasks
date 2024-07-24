@@ -5,6 +5,39 @@ use sysinfo::{Disk, DiskKind, Pid, System};
 
 
 #[derive(Debug)]
+pub struct ApplicationsData {
+    pub in_depth: InDepthApplicationsData,
+}
+
+impl ApplicationsData {
+    pub fn new() -> Self {
+        Self { in_depth: InDepthApplicationsData::new() }
+    }
+}
+
+#[derive(Debug)]
+pub struct InDepthApplicationsData {
+    pub applications: HashMap<Pid, ApplicationData>,
+}
+
+impl InDepthApplicationsData {
+    fn new() -> Self {
+        Self { applications: HashMap::new() }
+    }
+}
+
+#[derive(Debug)]
+pub struct ApplicationData {
+    // Unsure about some of these properties
+    pub name: String,
+    pub path: String,
+    pub pid: Pid,
+    pub parent_pid: Pid,
+    pub memory_usage: u64,
+    pub cpu_usage: f32,
+}
+
+#[derive(Debug)]
 pub struct CpuData {
     pub cpu_usage_percent: f32,
     pub frequency: u64,
@@ -119,23 +152,6 @@ pub struct BatteryData {
 }
 
 #[derive(Debug)]
-pub struct ApplicationsData {
-    pub applications_count: u32,
-    pub applications: Option<HashMap<Pid, ApplicationData>>,
-}
-
-#[derive(Debug)]
-pub struct ApplicationData {
-    // Unsure about some of these properties
-    pub name: String,
-    pub path: String,
-    pub pid: Pid,
-    pub parent_pid: Pid,
-    pub memory_usage: u64,
-    pub cpu_usage: f32,
-}
-
-#[derive(Debug)]
 pub struct MemoryData {
     pub ram_usage: u64,
     pub ram_total: u64,
@@ -191,6 +207,7 @@ impl MemoryDataInDepth {
 
 #[derive(Debug)]
 pub struct ResourceData {
+    pub applications: ApplicationsData,
     pub disks: HashMap<String, DiskData>,
     pub batteries: HashMap<String, BatteryData>,
     pub cpu: CpuData,
@@ -200,6 +217,7 @@ pub struct ResourceData {
 impl ResourceData {
     pub fn new() -> Self {
         Self {
+            applications: ApplicationsData::new(),
             disks: HashMap::new(),
             batteries: HashMap::new(),
             cpu: CpuData::new(),
