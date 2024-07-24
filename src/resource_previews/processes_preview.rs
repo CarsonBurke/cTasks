@@ -11,7 +11,7 @@ use crate::{
     general_widgets::icons::bootstrap_icon,
     preferences::Preferences,
     styles,
-    types::resource_data::CpuData,
+    types::resource_data::{ApplicationData, ApplicationsData, CpuData},
     utils::format_bytes,
     ActivePreview, ResourceType,
 };
@@ -22,21 +22,21 @@ use super::{
 };
 
 #[derive(Debug)]
-pub struct CpuPreview {
+pub struct ProcessesPreview {
     pub resource: ResourceType,
     pub display_state: ResourcePreviewDisplayState,
 }
 
-impl Default for CpuPreview {
+impl Default for ProcessesPreview {
     fn default() -> Self {
         Self {
-            resource: ResourceType::Cpu,
+            resource: ResourceType::Processes,
             display_state: ResourcePreviewDisplayState::Shown,
         }
     }
 }
 
-impl CpuPreview {
+impl ProcessesPreview {
     pub fn new() -> Self {
         Self {
             ..Default::default()
@@ -47,27 +47,16 @@ impl CpuPreview {
         &self,
         preferences: &Preferences,
         active_preview: &ActivePreview,
-        data: &CpuData,
     ) -> Element<ResourcePreviewMessage> {
-        let content = column![
-            row![
-                preview_header(
-                    bootstrap_icon(BootstrapIcon::Cpu),
-                    text("Cpu").size(font_sizes::H2)
-                ),
-                text(format!("{:.1}%", data.cpu_usage_percent))
-                    .style(theme::Text::Color(custom_theme::GREY_TEXT))
-                    .size(font_sizes::P),
-            ]
-            .spacing(padding::PORTION)
-            .align_items(iced::Alignment::Center),
-            progress_bar(0.0..=100., data.cpu_usage_percent)
-                .height(5)
-                .width(Length::Fill)
-                .style(|_: &_| styles::progress_bar::primary_background_5())
-        ]
+        let content = column![row![preview_header(
+            bootstrap_icon(BootstrapIcon::PersonWorkspace),
+            text("Processes").size(font_sizes::H2)
+        ),]
         .spacing(padding::PORTION)
-        .padding(padding::PORTION);
+        .align_items(iced::Alignment::Center),]
+        .spacing(padding::PORTION)
+        .padding(padding::PORTION)
+        .width(Length::Fill);
 
         let button = button(content)
             .on_press(ResourcePreviewMessage::ResourcePageFor(ActivePreview {

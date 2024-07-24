@@ -1,8 +1,10 @@
-use std::{collections::HashMap};
+use std::collections::HashMap;
 
 use battery::units::{ElectricPotential, Energy, Power, ThermodynamicTemperature};
+use ordered_float::OrderedFloat;
 use sysinfo::{Disk, DiskKind, Pid, System};
 
+use crate::{resource_pages::resource_details::SortDirection, App};
 
 #[derive(Debug)]
 pub struct ApplicationsData {
@@ -11,7 +13,28 @@ pub struct ApplicationsData {
 
 impl ApplicationsData {
     pub fn new() -> Self {
-        Self { in_depth: InDepthApplicationsData::new() }
+        Self {
+            in_depth: InDepthApplicationsData::new(),
+        }
+    }
+
+    pub fn update_in_depth(&mut self, system_info: &mut System) {
+        let mut applications = HashMap::new();
+
+        for (pid, process) in system_info.processes() {
+            applications.insert(
+                *pid,
+                ApplicationData {
+                    name: process.name().to_string(),
+                    pid: *pid,
+                    parent_pid: process.parent(),
+                    memory_usage: process.memory(),
+                    cpu_usage: process.cpu_usage(),
+                },
+            );
+        }
+
+        self.in_depth.applications = applications;
     }
 }
 
@@ -22,7 +45,9 @@ pub struct InDepthApplicationsData {
 
 impl InDepthApplicationsData {
     fn new() -> Self {
-        Self { applications: HashMap::new() }
+        Self {
+            applications: HashMap::new(),
+        }
     }
 }
 
@@ -30,11 +55,99 @@ impl InDepthApplicationsData {
 pub struct ApplicationData {
     // Unsure about some of these properties
     pub name: String,
-    pub path: String,
     pub pid: Pid,
-    pub parent_pid: Pid,
+    pub parent_pid: Option<Pid>,
     pub memory_usage: u64,
     pub cpu_usage: f32,
+}
+
+#[derive(Debug)]
+pub struct ProcessesData {
+    pub sort_index: u32,
+    pub sort_direction: SortDirection,
+    pub in_depth: InDepthProcessesData,
+}
+
+impl ProcessesData {
+    pub fn new() -> Self {
+        Self {
+            sort_index: 0,
+            sort_direction: SortDirection::default(),
+            in_depth: InDepthProcessesData::new(),
+        }
+    }
+
+    pub fn update_in_depth(&mut self, system_info: &mut System) {
+        let mut processes = Vec::new();
+
+        for (pid, process) in system_info.processes() {
+            let disk_usage = process.disk_usage();
+
+            processes.push(
+                ProcessData {
+                    name: process.name().to_string(),
+                    pid: *pid,
+                    parent_pid: process.parent(),
+                    memory_usage: process.memory(),
+                    cpu_usage: process.cpu_usage(),
+                    disk_read: disk_usage.read_bytes,
+                    disk_written: disk_usage.written_bytes,
+                },
+            );
+        }
+
+        self.in_depth.processes = processes;
+    }
+
+    pub fn sort_by_index(&mut self) {
+        match self.sort_index {
+            0 => {
+                self.in_depth.processes.sort_by_key(|process| process.name.to_lowercase());
+            }
+            1 => {
+                self.in_depth.processes.sort_by_key(|process| OrderedFloat(process.cpu_usage));
+            }
+            2 => {
+                self.in_depth.processes.sort_by_key(|process| process.memory_usage);
+            }
+            3 => {
+                self.in_depth.processes.sort_by_key(|process| process.disk_read);
+            }
+            4 => {
+                self.in_depth.processes.sort_by_key(|process| process.disk_written);
+            }
+            _ => (), // No sorting
+        };
+
+        match self.sort_direction {
+            SortDirection::Descending => self.in_depth.processes.reverse(),
+            SortDirection::Ascending => {}
+        };
+    }
+}
+
+#[derive(Debug)]
+pub struct InDepthProcessesData {
+    pub processes: Vec<ProcessData>,
+}
+
+impl InDepthProcessesData {
+    fn new() -> Self {
+        Self {
+            processes: Vec::new(),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct ProcessData {
+    pub name: String,
+    pub pid: Pid,
+    pub parent_pid: Option<Pid>,
+    pub memory_usage: u64,
+    pub cpu_usage: f32,
+    pub disk_read: u64,
+    pub disk_written: u64,
 }
 
 #[derive(Debug)]
@@ -208,6 +321,7 @@ impl MemoryDataInDepth {
 #[derive(Debug)]
 pub struct ResourceData {
     pub applications: ApplicationsData,
+    pub processes: ProcessesData,
     pub disks: HashMap<String, DiskData>,
     pub batteries: HashMap<String, BatteryData>,
     pub cpu: CpuData,
@@ -218,6 +332,7 @@ impl ResourceData {
     pub fn new() -> Self {
         Self {
             applications: ApplicationsData::new(),
+            processes: ProcessesData::new(),
             disks: HashMap::new(),
             batteries: HashMap::new(),
             cpu: CpuData::new(),

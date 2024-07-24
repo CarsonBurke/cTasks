@@ -1,11 +1,19 @@
 use iced::{
-    alignment, theme, widget::{button, column, container, progress_bar, row, text}, Element, Length
+    alignment, theme,
+    widget::{button, column, container, progress_bar, row, text},
+    Element, Length,
 };
 use iced_aw::BootstrapIcon;
 use sysinfo::{Disk, DiskKind};
 
 use crate::{
-    constants::{custom_theme, font_sizes, padding}, general_widgets::icons::bootstrap_icon, preferences::Preferences, styles, types::resource_data::{ApplicationData, ApplicationsData, CpuData}, utils::format_bytes, ActivePreview, ResourceType
+    constants::{custom_theme, font_sizes, padding},
+    general_widgets::icons::bootstrap_icon,
+    preferences::Preferences,
+    styles,
+    types::resource_data::{ApplicationData, ApplicationsData, CpuData},
+    utils::format_bytes,
+    ActivePreview, ResourceType,
 };
 
 use super::{
@@ -14,21 +22,21 @@ use super::{
 };
 
 #[derive(Debug)]
-pub struct CpuPreview {
+pub struct ApplicationsPreview {
     pub resource: ResourceType,
     pub display_state: ResourcePreviewDisplayState,
 }
 
-impl Default for CpuPreview {
+impl Default for ApplicationsPreview {
     fn default() -> Self {
         Self {
-            resource: ResourceType::Cpu,
+            resource: ResourceType::Applications,
             display_state: ResourcePreviewDisplayState::Shown,
         }
     }
 }
 
-impl CpuPreview {
+impl ApplicationsPreview {
     pub fn new() -> Self {
         Self {
             ..Default::default()
@@ -40,16 +48,15 @@ impl CpuPreview {
         preferences: &Preferences,
         active_preview: &ActivePreview,
     ) -> Element<ResourcePreviewMessage> {
-        let content = column![
-            row![
-                preview_header(
-                    bootstrap_icon(BootstrapIcon::App),
-                    text("Applications").size(font_sizes::H2)
-                ),
-            ]
-            .spacing(padding::PORTION).align_items(iced::Alignment::Center),
-        ]
-        .spacing(padding::PORTION).padding(padding::PORTION);
+        let content = column![row![preview_header(
+            bootstrap_icon(BootstrapIcon::WindowStack),
+            text("Applications").size(font_sizes::H2)
+        ),]
+        .spacing(padding::PORTION)
+        .align_items(iced::Alignment::Center),]
+        .spacing(padding::PORTION)
+        .padding(padding::PORTION)
+        .width(Length::Fill);
 
         let button = button(content)
             .on_press(ResourcePreviewMessage::ResourcePageFor(ActivePreview {

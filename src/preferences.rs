@@ -1,4 +1,4 @@
-use crate::constants::DisplayState;
+use crate::{constants::DisplayState, resource_pages::resource_details::SortDirection};
 
 #[derive(Debug, Copy, Clone)]
 pub enum ByteBase {

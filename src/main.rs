@@ -41,17 +41,20 @@ use iced_aw::{
 };
 use preferences::Preferences;
 use resource_pages::{
-    applications_page::{ApplicationsPage, ApplicationsPageMessage},
+    applications_page::{self, ApplicationsPage, ApplicationsPageMessage},
     cpu_page::{CpuPage, CpuPageMessage},
     disk_page::{DiskPage, DiskPageMessage},
     memory_page::{MemoryPage, MemoryPageMessage},
+    processes_page::{ProcessesPage, ProcessesPageMessage},
     resource_details::{ResourceDetails, ResourceDetailsMessage},
 };
 
 use resource_previews::{
+    applications_preview::ApplicationsPreview,
     cpu_preview::{self, CpuPreview},
     disk_preview::DiskPreview,
     memory_preview::MemoryPreview,
+    processes_preview::ProcessesPreview,
     resource_preview::ResourcePreviewMessage,
 };
 use sidebar::sidebar_item::{SidebarItemParent, SidebarItemParentMessage};
@@ -71,8 +74,8 @@ mod resource_pages;
 mod resource_previews;
 mod sidebar;
 mod styles;
-mod utils;
 mod types;
+mod utils;
 
 pub fn main() -> iced::Result {
     // let image = Image::load_from_memory(ICON).unwrap();
@@ -140,6 +143,8 @@ impl ResourceHistory {
 
 #[derive(Debug, Default)]
 pub struct ResourcePreviews {
+    pub applications: ApplicationsPreview,
+    pub processes: ProcessesPreview,
     pub cpu: CpuPreview,
     pub memory: MemoryPreview,
     pub disks: HashMap<String, DiskPreview>,
@@ -152,6 +157,7 @@ pub enum ResourcePage {
     Disk(DiskPage),
     Memory(MemoryPage),
     Applications(ApplicationsPage),
+    Processes(ProcessesPage),
 }
 
 #[derive(Debug)]
@@ -175,6 +181,7 @@ pub enum ResourcePageMessage {
     CpuPageMessage(CpuPageMessage),
     MemoryPageMessage(MemoryPageMessage),
     ApplicationsPageMessage(ApplicationsPageMessage),
+    ProcessesPageMessage(ProcessesPageMessage),
 }
 
 #[derive(Debug, Clone)]
@@ -182,7 +189,6 @@ enum AppMessage {
     FontLoaded(Result<(), font::Error>),
     Loaded(Result<(), String>),
     SidebarItemParentMessage(usize, SidebarItemParentMessage),
-    ResourceDetailsMessage(ResourceDetailsMessage),
     ResourcePageMessage(ResourcePageMessage),
     SetResourceDetails(ResourceType),
     ResourcePreviewMessage(ResourcePreviewMessage),
@@ -213,13 +219,10 @@ struct App {
     physical_core_count: u32,
     logical_core_count: u32,
     cpu_brand: String,
-    cpu_frequency: u64,
     disk_info: Disks,
     network_info: Networks,
     state: AppState,
     tick: i32,
-    logical_cores_usage_percent: Vec<f32>,
-    logical_cores_frequencies: Vec<u64>,
     resource_history: ResourceHistory,
     resource_data: ResourceData,
     previews: ResourcePreviews,
@@ -253,7 +256,7 @@ impl Application for App {
 
         let preferences = Preferences::new();
 
-        let mut new_self = Self {
+        let new_self = Self {
             tick_interval: 1000,
             state: AppState::Loading,
             preferences,
@@ -262,23 +265,18 @@ impl Application for App {
             logical_core_count,
             cpu_brand,
             tick: 0,
-            logical_cores_usage_percent,
-            logical_cores_frequencies,
             resource_history: ResourceHistory::new(logical_core_count),
             sidebar_items: Vec::new(),
             resource_page: ResourcePage::Cpu(CpuPage::new(&preferences)),
             active_preview: ActivePreview {
-                resource: ResourceType::default(),
+                resource: ResourceType::Cpu,
                 name: None,
             },
             resource_data: ResourceData::new(),
             previews: ResourcePreviews::default(),
             disk_info: Disks::new(),
             network_info: Networks::new(),
-            cpu_frequency: 0,
         };
-
-        // new_self.previews.disks.insert("disk 1".to_string(), DiskPreview::new());
 
         let command = Command::batch(vec![
             // font::load(iced_aw::NERD_FONT_BYTES).map(Message::FontLoaded),
@@ -373,8 +371,6 @@ impl Application for App {
                             }
                         }
 
-                        // applications
-
                         // cpu
                         self.resource_data
                             .cpu
@@ -415,7 +411,7 @@ impl Application for App {
 
                             history.push_back((
                                 HISTORY_TICKS as i32,
-                                self.logical_cores_usage_percent[index] as i32,
+                                self.resource_data.cpu.logical_cores_usage_percents[index] as i32,
                             ));
                         }
 
@@ -504,58 +500,11 @@ impl Application for App {
                             ResourcePageMessage::ApplicationsPageMessage(
                                 applications_page_message,
                             ) => {}
-                            _ => {}
-                        }
-                    }
-                    AppMessage::ResourceDetailsMessage(resource_details_message) => {
-                        // println!("message: {:?}", resource_details_message);
-
-                        /* let _ = self
-                            .main_content
-                            .update(resource_details_message)
-                            .map(AppMessage::ResourceDetailsMessage);
-
-                        match resource_details_message {
-                            ResourceDetailsMessage::ToggleLogicalCores(_toggle_state) => {
-                                self.main_content.on_tick(
-                                    &mut self.system_info,
-                                    self.cpu_usage_percent,
-                                    self.physical_cpu_count,
-                                    self.logical_core_count,
-                                    self.cpu_brand.clone(),
-                                    self.cpu_frequency,
-                                    &self.resource_history,
-                                    &self.logical_cores_usage_percent,
-                                    &self.logical_cores_frequencies,
-                                    &self.resource_data,
-                                    &self.preferences,
-                                    &self.active_preview,
-                                );
+                            ResourcePageMessage::ProcessesPageMessage(processes_page_message) => {
+                                
                             }
                             _ => {}
-                        } */
-                    }
-                    AppMessage::SetResourceDetails(resource) => {
-                        /* if resource == self.main_content.resource {
-                            return;
                         }
-
-                        self.main_content
-                            .apply_resource_type(resource, &self.preferences);
-                        self.main_content.on_tick(
-                            &mut self.system_info,
-                            self.cpu_usage_percent,
-                            self.physical_cpu_count,
-                            self.logical_core_count,
-                            self.cpu_brand.clone(),
-                            self.cpu_frequency,
-                            &self.resource_history,
-                            &self.logical_cores_usage_percent,
-                            &self.logical_cores_frequencies,
-                            &self.resource_data,
-                            &self.preferences,
-                            &self.active_preview,
-                        ); */
                     }
                     AppMessage::ResourcePreviewMessage(preview_message) => {
                         match preview_message {
@@ -658,9 +607,15 @@ impl Application for App {
                 };
 
                 let sidebar_content_new = Column::with_children({
-                    let mut children = Vec::new();
-
-                    children.push(
+                    let mut children = vec![
+                        self.previews
+                            .applications
+                            .view(&self.preferences, &self.active_preview)
+                            .map(AppMessage::ResourcePreviewMessage),
+                        self.previews
+                            .processes
+                            .view(&self.preferences, &self.active_preview)
+                            .map(AppMessage::ResourcePreviewMessage),
                         self.previews
                             .cpu
                             .view(
@@ -669,9 +624,6 @@ impl Application for App {
                                 &self.resource_data.cpu,
                             )
                             .map(AppMessage::ResourcePreviewMessage),
-                    );
-
-                    children.push(
                         self.previews
                             .memory
                             .view(
@@ -680,7 +632,7 @@ impl Application for App {
                                 &self.resource_data.memory,
                             )
                             .map(AppMessage::ResourcePreviewMessage),
-                    );
+                    ];
 
                     for (disk_name, disk_preview) in &self.previews.disks {
                         let disk_data = self.resource_data.disks.get(disk_name).unwrap();
@@ -741,6 +693,20 @@ impl Application for App {
 
                 let main_new = container({
                     let page: Element<_> = match &self.resource_page {
+                        ResourcePage::Applications(applications_page) => applications_page
+                            .view(&self.preferences, &self.resource_data.applications)
+                            .map(move |message| {
+                                AppMessage::ResourcePageMessage(
+                                    ResourcePageMessage::ApplicationsPageMessage(message),
+                                )
+                            }),
+                        ResourcePage::Processes(processes_page) => processes_page
+                            .view(&self.preferences, &self.resource_data.processes)
+                            .map(move |message| {
+                                AppMessage::ResourcePageMessage(
+                                    ResourcePageMessage::ProcessesPageMessage(message),
+                                )
+                            }),
                         ResourcePage::Cpu(cpu_page) => cpu_page
                             .view(
                                 &self.preferences,
@@ -868,6 +834,12 @@ pub enum ResourceType {
 
 fn change_resource_page(app: &mut App, active_preview: &ActivePreview) {
     match active_preview.resource {
+        ResourceType::Applications => {
+            app.resource_page = ResourcePage::Applications(ApplicationsPage::new(&app.preferences));
+        }
+        ResourceType::Processes => {
+            app.resource_page = ResourcePage::Processes(ProcessesPage::new(&app.preferences));
+        }
         ResourceType::Cpu => {
             app.resource_page = ResourcePage::Cpu(CpuPage::new(&app.preferences));
         }
@@ -883,6 +855,16 @@ fn change_resource_page(app: &mut App, active_preview: &ActivePreview) {
 
 fn update_resource_page(app: &mut App) {
     match &mut app.resource_page {
+        ResourcePage::Applications(applications_page) => {
+            app.resource_data
+                .applications
+                .update_in_depth(&mut app.system_info);
+        }
+        ResourcePage::Processes(processes_page) => {
+            app.resource_data
+                .processes
+                .update_in_depth(&mut app.system_info);
+        }
         ResourcePage::Cpu(cpu_page) => {
             cpu_page.update_history(&app.resource_history);
         }

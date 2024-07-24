@@ -1,6 +1,6 @@
 use iced::{widget::{column, container, text}, Command, Element};
 
-use crate::{preferences::{self, Preferences}, types::resource_data::ApplicationData};
+use crate::{preferences::{self, Preferences}, types::resource_data::{ApplicationData, ApplicationsData}};
 
 use super::chart::{ResourceChart, ResourceChartMessage};
 
@@ -27,7 +27,7 @@ impl ApplicationsPage {
         }
     }
 
-    pub fn view(&self, preferences: &Preferences, data: &ApplicationData) -> Element<ApplicationsPageMessage> {
+    pub fn view(&self, preferences: &Preferences, data: &ApplicationsData) -> Element<ApplicationsPageMessage> {
         let content = column![text(String::from("apps"))];
 
         let container = container(content);
