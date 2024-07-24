@@ -299,12 +299,6 @@ impl Application for App {
                     println!("loading success");
 
                     self.sidebar_items = vec![
-                        SidebarItemParent::new(
-                            ResourceType::Applications,
-                            String::from("Applications"),
-                        ),
-                        SidebarItemParent::new(ResourceType::Processes, String::from("Processes")),
-                        SidebarItemParent::new(ResourceType::Memory, String::from("Memory")),
                         SidebarItemParent::new(ResourceType::Gpu, String::from("Gpu")),
                         SidebarItemParent::new(ResourceType::Wifi, String::from("Wifi")),
                         SidebarItemParent::new(ResourceType::Ethernet, String::from("Ethernet")),
@@ -492,6 +486,9 @@ impl Application for App {
                     }
                     AppMessage::ResourcePageMessage(resource_page_message) => {
                         // maybe this is good reason to split each page into its own message, since they each may have unique properties
+                        // would be good to have a way to map the page message to the current page type
+
+                        // match page, then match page message
 
                         match resource_page_message {
                             ResourcePageMessage::DiskPageMessage(disk_page_message) => {}
@@ -501,7 +498,16 @@ impl Application for App {
                                 applications_page_message,
                             ) => {}
                             ResourcePageMessage::ProcessesPageMessage(processes_page_message) => {
-                                
+                                match &mut self.resource_page {
+                                    ResourcePage::Processes(processes_page) => {
+                                        processes_page.update(
+                                            processes_page_message,
+                                            &mut self.resource_data.processes,
+                                            &self.system_info,
+                                        );
+                                    }
+                                    _ => {}
+                                }
                             }
                             _ => {}
                         }
@@ -650,7 +656,7 @@ impl Application for App {
 
                 let sidebar = container(
                     iced::widget::scrollable(
-                        column![sidebar_header, sidebar_content, sidebar_content_new]
+                        column![sidebar_header, sidebar_content_new, sidebar_content]
                             .spacing(20)
                             .padding(padding::MAIN),
                     )

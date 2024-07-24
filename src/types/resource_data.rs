@@ -97,6 +97,8 @@ impl ProcessesData {
         }
 
         self.in_depth.processes = processes;
+
+        self.sort_by_index();
     }
 
     pub fn sort_by_index(&mut self) {

@@ -1,14 +1,24 @@
 use iced::{
-    alignment, theme, widget::{button, column, container, horizontal_space, row, scrollable, text, text_input}, Alignment, Command, Element, Length, Theme
+    alignment, theme,
+    widget::{button, column, container, horizontal_space, row, scrollable, text, text_input},
+    Alignment, Command, Element, Length, Theme,
 };
 use iced_aw::{style, BootstrapIcon};
 use sysinfo::{MemoryRefreshKind, RefreshKind, System};
 
 use crate::{
-    constants::{font_sizes, padding, sizings}, general_widgets::{
+    constants::{font_sizes, padding, sizings},
+    general_widgets::{
         icons::bootstrap_icon, section::section_box, seperators::seperator_background_1,
         split_table_double::split_table_double, split_table_single::split_table_single,
-    }, preferences::Preferences, styles::{self, container::{divider_background_1, resource_details_child, resource_details_header}}, types::resource_data::MemoryData, ResourceHistory
+    },
+    preferences::Preferences,
+    styles::{
+        self,
+        container::{divider_background_1, resource_details_child, resource_details_header},
+    },
+    types::resource_data::MemoryData,
+    ResourceHistory,
 };
 
 use super::chart::{ResourceChart, ResourceChartMessage};
@@ -45,49 +55,48 @@ impl MemoryPage {
     }
 
     pub fn view(&self, preferences: &Preferences, data: &MemoryData) -> Element<MemoryPageMessage> {
-        let header = container(row!["Memory"])
+        let header = container(column!["Memory"])
             .center_x()
             .style(resource_details_header())
             .width(Length::Fill)
             .padding(padding::MAIN);
 
-        let ram_details =
-            section_box(
-                (
-                    bootstrap_icon(BootstrapIcon::Memory),
-                    text(String::from("Random Access Memory")),
-                    row![],
-                ),
-                {
-                    if data.ram_usage == 0 || data.ram_total == 0 {
-                        column!["No RAM data to display"]
-                    } else {
-                        column![
-                            container(self.ram_chart.view(None).map(move |message| {
-                                MemoryPageMessage::ResourceChartMessage(message)
-                            })),
-                            seperator_background_1(),
-                            split_table_double(vec![(
-                                (
-                                    text("Usage".to_string()),
-                                    text(format!(
-                                        "{:.2} / {:.2} GB",
-                                        data.ram_usage as f64 / 1024. / 1024. / 1024.,
-                                        data.ram_total as f64 / 1024. / 1024. / 1024.
-                                    ))
-                                ),
-                                (
-                                    text("Percent used".to_string()),
-                                    text(format!(
-                                        "{:.1}%",
-                                        data.ram_usage as f64 / data.ram_total as f64 * 100.
-                                    ))
-                                )
-                            )]),
-                        ]
-                    }
-                },
-            );
+        let ram_details = section_box(
+            (
+                bootstrap_icon(BootstrapIcon::Memory),
+                text(String::from("Random Access Memory")),
+                row![],
+            ),
+            {
+                if data.ram_usage == 0 || data.ram_total == 0 {
+                    column!["No RAM data to display"]
+                } else {
+                    column![
+                        container(self.ram_chart.view(None).map(move |message| {
+                            MemoryPageMessage::ResourceChartMessage(message)
+                        })),
+                        seperator_background_1(),
+                        split_table_double(vec![(
+                            (
+                                text("Usage".to_string()),
+                                text(format!(
+                                    "{:.2} / {:.2} GB",
+                                    data.ram_usage as f64 / 1024. / 1024. / 1024.,
+                                    data.ram_total as f64 / 1024. / 1024. / 1024.
+                                ))
+                            ),
+                            (
+                                text("Percent used".to_string()),
+                                text(format!(
+                                    "{:.1}%",
+                                    data.ram_usage as f64 / data.ram_total as f64 * 100.
+                                ))
+                            )
+                        )]),
+                    ]
+                }
+            },
+        );
 
         let swap_details = section_box(
             (
@@ -171,11 +180,8 @@ impl MemoryPage {
                 row![
                     text(String::from("Swapiness")),
                     horizontal_space(),
-                    row![
-                        text_input("current swapiness", "val"),
-                        button("change")
-                    ]
-                    .spacing(padding::PORTION),
+                    row![text_input("current swapiness", "val"), button("change")]
+                        .spacing(padding::PORTION),
                 ]
                 .padding(padding::MAIN),
                 container(row![])
