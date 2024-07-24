@@ -1,6 +1,6 @@
 use iced::{widget::{column, container, text}, Command, Element};
 
-use crate::{preferences::{self, Preferences}, ApplicationData};
+use crate::{preferences::{self, Preferences}, types::resource_data::ApplicationData};
 
 use super::chart::{ResourceChart, ResourceChartMessage};
 

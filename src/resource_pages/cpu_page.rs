@@ -9,18 +9,13 @@ use crate::{
     constants::{
         padding,
         sizings::{self, DEFAULT_CHART_HEIGHT},
-    },
-    general_widgets::{
+    }, general_widgets::{
         icons::bootstrap_icon,
         section::{section, section_box, section_box_headless},
         seperators::seperator_background_1,
         split_table_double::split_table_double,
         split_table_single::split_table_single,
-    },
-    preferences::Preferences,
-    styles::{self, container::resource_details_header},
-    utils::format_hz,
-    CpuData, ResourceHistory,
+    }, preferences::Preferences, styles::{self, container::resource_details_header}, types::resource_data::CpuData, utils::format_hz, ResourceHistory
 };
 
 use super::{

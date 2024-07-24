@@ -5,7 +5,7 @@ use iced_aw::BootstrapIcon;
 use sysinfo::{Disk, DiskKind};
 
 use crate::{
-    constants::{custom_theme, font_sizes, padding}, general_widgets::icons::bootstrap_icon, preferences::Preferences, styles, utils::format_bytes, ActivePreview, CpuData, DiskData, MemoryData, ResourceType
+    constants::{custom_theme, font_sizes, padding}, general_widgets::icons::bootstrap_icon, preferences::Preferences, styles, types::resource_data::MemoryData, utils::format_bytes, ActivePreview, ResourceType
 };
 
 use super::{

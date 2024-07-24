@@ -5,14 +5,10 @@ use iced_aw::{style, BootstrapIcon};
 use sysinfo::{MemoryRefreshKind, RefreshKind, System};
 
 use crate::{
-    constants::{font_sizes, padding, sizings},
-    general_widgets::{
+    constants::{font_sizes, padding, sizings}, general_widgets::{
         icons::bootstrap_icon, section::section_box, seperators::seperator_background_1,
         split_table_double::split_table_double, split_table_single::split_table_single,
-    },
-    preferences::Preferences,
-    styles::{self, container::{divider_background_1, resource_details_child, resource_details_header}},
-    MemoryData, ResourceHistory,
+    }, preferences::Preferences, styles::{self, container::{divider_background_1, resource_details_child, resource_details_header}}, types::resource_data::MemoryData, ResourceHistory
 };
 
 use super::chart::{ResourceChart, ResourceChartMessage};
