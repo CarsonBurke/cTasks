@@ -32,22 +32,27 @@ pub enum CpuPageMessage {
 pub struct CpuPage {
     pub cpu_chart: ResourceChart,
     pub logical_core_charts: Vec<ResourceChart>,
-    pub show_logical_cores: bool,
 }
 
 impl CpuPage {
-    pub fn new(preferences: &Preferences) -> Self {
+    pub fn new(preferences: &Preferences, logical_core_count: u32) -> Self {
+
+        let mut logical_core_charts = Vec::new();
+
+        for _ in 0..logical_core_count {
+            logical_core_charts.push(ResourceChart::new(preferences));
+        }
+
         Self {
             cpu_chart: ResourceChart::new(preferences),
-            logical_core_charts: Vec::new(),
-            show_logical_cores: preferences.show_logical_core_charts,
+            logical_core_charts,
         }
     }
 
-    pub fn update(&mut self, message: CpuPageMessage) -> Command<CpuPageMessage> {
+    pub fn update(&mut self, message: CpuPageMessage, data: &mut CpuData) -> Command<CpuPageMessage> {
         match message {
             CpuPageMessage::ToggleLogicalCores(new_state) => {
-                self.show_logical_cores = new_state;
+                data.show_logical_cores = new_state;
 
                 Command::none()
             }
@@ -72,13 +77,13 @@ impl CpuPage {
             .padding(padding::MAIN);
 
         let cpu_details_ui = {
-            if preferences.show_logical_core_charts {
+            if data.show_logical_cores {
                 section(
                     (
                         bootstrap_icon(BootstrapIcon::Cpu),
                         text(String::from("CPU")),
                         row![
-                            checkbox("logical cores", preferences.show_logical_core_charts)
+                            checkbox("logical cores", data.show_logical_cores)
                                 .on_toggle(CpuPageMessage::ToggleLogicalCores)
                         ],
                     ),
@@ -128,7 +133,7 @@ impl CpuPage {
                         bootstrap_icon(BootstrapIcon::Cpu),
                         text(String::from("CPU")),
                         row![
-                            checkbox("logical cores", preferences.show_logical_core_charts)
+                            checkbox("logical cores", data.show_logical_cores)
                                 .on_toggle(CpuPageMessage::ToggleLogicalCores)
                         ],
                     ),

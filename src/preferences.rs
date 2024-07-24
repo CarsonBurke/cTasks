@@ -14,7 +14,6 @@ pub struct Preferences {
     pub chart_y_axis_labels: bool,
     pub chart_y_axis_major_grid_lines: usize,
     pub byte_base: ByteBase,
-    pub show_logical_core_charts: bool,
 }
 
 impl Default for Preferences {
@@ -26,7 +25,6 @@ impl Default for Preferences {
             chart_y_axis_labels: false,
             chart_y_axis_major_grid_lines: 6,
             byte_base: ByteBase::Binary,
-            show_logical_core_charts: false,
         }
     }
 }

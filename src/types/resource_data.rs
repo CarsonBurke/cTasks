@@ -158,6 +158,7 @@ pub struct CpuData {
     pub frequency: u64,
     pub logical_cores_usage_percents: Vec<f32>,
     pub logical_cores_frequencies: Vec<u64>,
+    pub show_logical_cores: bool,
 }
 
 impl CpuData {
@@ -167,6 +168,7 @@ impl CpuData {
             frequency: 0,
             logical_cores_usage_percents: vec![],
             logical_cores_frequencies: vec![],
+            show_logical_cores: false,
         }
     }
 

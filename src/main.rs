@@ -267,7 +267,7 @@ impl Application for App {
             tick: 0,
             resource_history: ResourceHistory::new(logical_core_count),
             sidebar_items: Vec::new(),
-            resource_page: ResourcePage::Cpu(CpuPage::new(&preferences)),
+            resource_page: ResourcePage::Cpu(CpuPage::new(&preferences, logical_core_count)),
             active_preview: ActivePreview {
                 resource: ResourceType::Cpu,
                 name: None,
@@ -492,7 +492,14 @@ impl Application for App {
 
                         match resource_page_message {
                             ResourcePageMessage::DiskPageMessage(disk_page_message) => {}
-                            ResourcePageMessage::CpuPageMessage(cpu_page_message) => {}
+                            ResourcePageMessage::CpuPageMessage(cpu_page_message) => {
+                                match &mut self.resource_page {
+                                    ResourcePage::Cpu(cpu_page) => {
+                                        cpu_page.update(cpu_page_message, &mut self.resource_data.cpu);
+                                    }
+                                    _ => {}
+                                }
+                            }
                             ResourcePageMessage::MemoryPageMessage(memory_page_message) => {}
                             ResourcePageMessage::ApplicationsPageMessage(
                                 applications_page_message,
@@ -847,7 +854,7 @@ fn change_resource_page(app: &mut App, active_preview: &ActivePreview) {
             app.resource_page = ResourcePage::Processes(ProcessesPage::new(&app.preferences));
         }
         ResourceType::Cpu => {
-            app.resource_page = ResourcePage::Cpu(CpuPage::new(&app.preferences));
+            app.resource_page = ResourcePage::Cpu(CpuPage::new(&app.preferences, app.logical_core_count));
         }
         ResourceType::Disk => {
             app.resource_page = ResourcePage::Disk(DiskPage::new(&app.preferences));
