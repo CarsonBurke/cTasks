@@ -223,8 +223,6 @@ struct App {
     resource_history: ResourceHistory,
     resource_data: ResourceData,
     previews: ResourcePreviews,
-    #[deprecated]
-    resources_details: ResourcePages,
     active_preview: ActivePreview,
 }
 
@@ -275,7 +273,6 @@ impl Application for App {
             },
             resource_data: ResourceData::new(),
             previews: ResourcePreviews::default(),
-            resources_details: ResourcePages::new(),
             disk_info: Disks::new(),
             network_info: Networks::new(),
             cpu_frequency: 0,
