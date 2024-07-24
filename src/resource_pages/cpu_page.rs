@@ -20,7 +20,7 @@ use crate::{
     preferences::Preferences,
     styles::{self, container::resource_details_header},
     utils::format_hz,
-    CpuData,
+    CpuData, ResourceHistory,
 };
 
 use super::{
@@ -60,6 +60,14 @@ impl CpuPage {
         }
     }
 
+    pub fn update_history(&mut self, resource_history: &ResourceHistory) {
+        self.cpu_chart.data_points = resource_history.cpu.clone();
+
+        for (i, chart) in &mut self.logical_core_charts.iter_mut().enumerate() {
+            chart.data_points = resource_history.logical_cores[i].clone();
+        }
+    }
+
     pub fn view(&self, preferences: &Preferences, data: &CpuData, physical_core_count: u32, logical_core_count: u32, brand: String) -> Element<CpuPageMessage> {
 
         let header = container(row!["CPU"])
@@ -82,9 +90,7 @@ impl CpuPage {
                     column![Wrap::with_elements({
                         let mut children: Vec<Element<'_, CpuPageMessage>> = Vec::new();
 
-                        let mut i = 0;
-
-                        for usage_percent in &data.logical_cores_usage_percents {
+                        for (i, usage_percent) in data.logical_cores_usage_percents.iter().enumerate() {
                             children.push(
                                 section_box_headless(column![
                                     self.logical_core_charts[i]
@@ -114,8 +120,6 @@ impl CpuPage {
                                 //.max_width((sizings::MAX_MAIN_CONTENT_CHILDREN_WIDTH as f32 - padding::MAIN as f32) / 2./* sizings::MAX_MAIN_CONTENT_CHILDREN_WIDTH as f32 / 2. - padding::MAIN as f32 */)
                                 .into(),
                             );
-
-                            i += 1;
                         }
 
                         children

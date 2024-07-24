@@ -7,15 +7,10 @@ use iced_aw::BootstrapIcon;
 use sysinfo::DiskKind;
 
 use crate::{
-    constants::padding,
-    general_widgets::{
+    constants::padding, general_widgets::{
         icons::bootstrap_icon, section::section_box, seperators::seperator_background_1,
         split_table_double::split_table_double, split_table_single::split_table_single,
-    },
-    preferences::Preferences,
-    styles::{self, container::resource_details_header},
-    utils::{format_bytes, round_bytes_list},
-    DiskData,
+    }, preferences::Preferences, styles::{self, container::resource_details_header}, utils::{format_bytes, round_bytes_list}, ActivePreview, DiskData, ResourceHistory
 };
 
 use super::{
@@ -40,6 +35,16 @@ impl DiskPage {
             written_chart: ResourceChart::new(preferences),
             read_chart: ResourceChart::new(preferences),
         }
+    }
+
+    pub fn update_history(&mut self, active_preview: &ActivePreview, resource_history: &ResourceHistory) {
+
+        let disk_name = active_preview.name.as_ref().unwrap();
+        let disk_written = resource_history.disk_write.get(disk_name).unwrap();
+        let disk_read = resource_history.disk_read.get(disk_name).unwrap();
+
+        self.written_chart.data_points = disk_written.clone();
+        self.read_chart.data_points = disk_read.clone();
     }
 
     pub fn update(&mut self, message: DiskPageMessage) -> Command<DiskPageMessage> {

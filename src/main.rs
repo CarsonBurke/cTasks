@@ -51,6 +51,7 @@ use resource_pages::{
 use resource_previews::{
     cpu_preview::{self, CpuPreview},
     disk_preview::DiskPreview,
+    memory_preview::MemoryPreview,
     resource_preview::ResourcePreviewMessage,
 };
 use sidebar::sidebar_item::{SidebarItemParent, SidebarItemParentMessage};
@@ -111,8 +112,8 @@ pub struct ResourceHistory {
     pub logical_cores: Vec<VecDeque<(i32, i32)>>,
     pub ram: VecDeque<(i32, i32)>,
     pub swap: VecDeque<(i32, i32)>,
-    pub disk_write: Vec<VecDeque<(i32, i32)>>,
-    pub disk_read: Vec<VecDeque<(i32, i32)>>,
+    pub disk_write: HashMap<String, VecDeque<(i32, i32)>>,
+    pub disk_read: HashMap<String, VecDeque<(i32, i32)>>,
     pub gpu: VecDeque<(i32, i32)>,
     pub vram: VecDeque<(i32, i32)>,
     pub wifi: VecDeque<(i32, i32)>,
@@ -138,6 +139,7 @@ impl ResourceHistory {
 #[derive(Debug, Default)]
 pub struct ResourcePreviews {
     pub cpu: CpuPreview,
+    pub memory: MemoryPreview,
     pub disks: HashMap<String, DiskPreview>,
 }
 
@@ -180,6 +182,30 @@ impl CpuData {
             logical_cores_frequencies: vec![],
         }
     }
+
+    pub fn update(&mut self, cpu_info: &[sysinfo::Cpu], logical_core_count: u32) {
+        let mut total_used: f32 = 0.;
+        let mut total_frequency: u64 = 0;
+        let mut logical_cores_usage_percents: Vec<f32> = Vec::new();
+        let mut logical_cores_frequencies: Vec<u64> = Vec::new();
+
+        for (_, logical_core) in cpu_info.iter().enumerate() {
+            let cpu_usage = logical_core.cpu_usage();
+            let frequency = logical_core.frequency();
+
+            logical_cores_usage_percents.push(cpu_usage);
+
+            total_frequency += frequency;
+            logical_cores_frequencies.push(frequency);
+
+            total_used += cpu_usage;
+        }
+
+        self.cpu_usage_percent = total_used / logical_core_count as f32;
+        self.frequency = total_frequency / logical_core_count as u64;
+        self.logical_cores_usage_percents = logical_cores_usage_percents;
+        self.logical_cores_frequencies = logical_cores_frequencies;
+    }
 }
 
 #[derive(Debug)]
@@ -206,6 +232,23 @@ impl DiskData {
                 is_removable: false,
             }),
         }
+    }
+
+    pub fn update(&mut self, disk_name: &String, disk: &Disk) {
+        self.name = disk_name.clone();
+        self.space_total = disk.total_space();
+        self.space_used = self.space_total - disk.available_space();
+        self.read = 0;
+        self.written = 0;
+        self.kind = disk.kind();
+    }
+
+    pub fn update_in_depth(&mut self, disk_name: &String, disk: &Disk) {
+        let in_depth = DiskDataInDepth {
+            is_removable: disk.is_removable(),
+        };
+
+        self.in_depth = Some(in_depth);
     }
 }
 
@@ -257,14 +300,54 @@ pub struct ApplicationData {
 pub struct MemoryData {
     pub ram_usage: u64,
     pub ram_total: u64,
+    pub ram_usage_percent: f32,
     pub swap_usage: u64,
     pub swap_total: u64,
+    pub swap_usage_percent: f32,
     pub in_depth: Option<MemoryDataInDepth>,
+}
+
+impl MemoryData {
+    fn new() -> Self {
+        Self {
+            ram_usage: 0,
+            ram_total: 0,
+            ram_usage_percent: 0.,
+            swap_usage: 0,
+            swap_total: 0,
+            swap_usage_percent: 0.,
+            in_depth: Some(MemoryDataInDepth::new()),
+        }
+    }
+
+    pub fn update(&mut self, system_info: &System) {
+        // ram
+
+        self.ram_usage = system_info.used_memory();
+        self.ram_total = system_info.total_memory();
+
+        self.ram_usage_percent = self.ram_usage as f32 / self.ram_total as f32 * 100.;
+
+        // swap
+
+        self.swap_usage = system_info.used_swap();
+        self.swap_total = system_info.total_swap();
+
+        self.swap_usage_percent = self.swap_usage as f32 / self.swap_total as f32 * 100.;
+    }
 }
 
 #[derive(Debug)]
 pub struct MemoryDataInDepth {
-    is_removable: bool,
+    pub is_removable: bool,
+}
+
+impl MemoryDataInDepth {
+    fn new() -> Self {
+        Self {
+            is_removable: false,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -272,6 +355,7 @@ pub struct ResourceData {
     pub disks: HashMap<String, DiskData>,
     pub batteries: HashMap<String, BatteryData>,
     pub cpu: CpuData,
+    pub memory: MemoryData,
 }
 
 impl ResourceData {
@@ -280,6 +364,7 @@ impl ResourceData {
             disks: HashMap::new(),
             batteries: HashMap::new(),
             cpu: CpuData::new(),
+            memory: MemoryData::new(),
         }
     }
 }
@@ -333,9 +418,6 @@ struct App {
     cpu_frequency: u64,
     disk_info: Disks,
     network_info: Networks,
-    cpu_usage_percent: f32,
-    ram_usage_percent: f32,
-    swap_usage_percent: f32,
     state: AppState,
     tick: i32,
     logical_cores_usage_percent: Vec<f32>,
@@ -399,9 +481,6 @@ impl Application for App {
             disk_info: Disks::new(),
             network_info: Networks::new(),
             cpu_frequency: 0,
-            cpu_usage_percent: 0.,
-            ram_usage_percent: 0.,
-            swap_usage_percent: 0.,
         };
 
         // new_self.previews.disks.insert("disk 1".to_string(), DiskPreview::new());
@@ -452,293 +531,263 @@ impl Application for App {
                 //     SidebarItemParent::new(String::from("Goodbye")),
                 // ];
 
-                (|| {
-                    match message {
-                        AppMessage::Tick => {
-                            self.resource_history.last_tick = self.tick;
-                            self.tick += 1;
+                match message {
+                    AppMessage::Tick => {
+                        self.resource_history.last_tick = self.tick;
+                        self.tick += 1;
 
-                            // Change this to call specific to be more optimal
+                        // Change this to call specific to be more optimal
 
-                            self.system_info.refresh_cpu_specifics(
-                                CpuRefreshKind::new().with_cpu_usage().with_frequency(),
-                            );
-                            self.system_info.refresh_processes_specifics(
-                                ProcessRefreshKind::new().with_user(UpdateKind::Always),
-                            );
-                            self.system_info
-                                .refresh_memory_specifics(MemoryRefreshKind::new().with_ram());
-                            self.disk_info = Disks::new_with_refreshed_list();
-                            self.network_info = Networks::new_with_refreshed_list();
+                        self.system_info.refresh_cpu_specifics(
+                            CpuRefreshKind::new().with_cpu_usage().with_frequency(),
+                        );
+                        self.system_info.refresh_processes_specifics(
+                            ProcessRefreshKind::new().with_user(UpdateKind::Always),
+                        );
+                        self.system_info
+                            .refresh_memory_specifics(MemoryRefreshKind::new().with_ram());
+                        self.disk_info = Disks::new_with_refreshed_list();
+                        self.network_info = Networks::new_with_refreshed_list();
 
-                            // Update and construct disk data
+                        // Update and construct disk data
 
-                            for disk in &self.disk_info {
-                                let disk_name =
-                                    disk.name().to_str().unwrap_or("default").to_string();
+                        for disk in &self.disk_info {
+                            let disk_name = disk.name().to_str().unwrap_or("default").to_string();
 
-                                if let Some(disk_data) =
-                                    self.resource_data.disks.get_mut(&disk_name)
-                                {
-                                    update_disk_data(disk_data, &disk_name, disk);
-                                    continue;
-                                };
+                            if let Some(disk_data) = self.resource_data.disks.get_mut(&disk_name) {
+                                disk_data.update(&disk_name, disk);
+                                continue;
+                            };
 
-                                let mut new_disk_data = DiskData::new();
+                            let mut new_disk_data = DiskData::new();
 
-                                update_disk_data(&mut new_disk_data, &disk_name, disk);
+                            new_disk_data.update(&disk_name, disk);
 
-                                self.resource_data.disks.insert(disk_name, new_disk_data);
+                            self.resource_data.disks.insert(disk_name, new_disk_data);
+                        }
+
+                        // Update and construct disk previews and details
+
+                        for (_, disk_data) in &self.resource_data.disks {
+                            if self.previews.disks.get_mut(&disk_data.name).is_none() {
+                                let new_preview = DiskPreview::new();
+
+                                self.previews
+                                    .disks
+                                    .insert(disk_data.name.clone(), new_preview);
+                            }
+                        }
+
+                        // cpu
+                        self.resource_data
+                            .cpu
+                            .update(self.system_info.cpus(), self.logical_core_count);
+
+                        // ram
+                        self.resource_data.memory.update(&self.system_info);
+
+                        // cpu history
+
+                        let tick_delta = self.tick - self.resource_history.last_tick;
+
+                        for history_tick in &mut self.resource_history.cpu {
+                            history_tick.0 -= tick_delta;
+                        }
+
+                        self.resource_history
+                            .cpu
+                            .retain(|history_tick| history_tick.0 >= 0);
+
+                        self.resource_history.cpu.push_back((
+                            HISTORY_TICKS as i32,
+                            self.resource_data.cpu.cpu_usage_percent as i32,
+                        ));
+
+                        // logical cores
+
+                        // logical cores history
+
+                        for (index, history) in
+                            self.resource_history.logical_cores.iter_mut().enumerate()
+                        {
+                            for history_tick in history.iter_mut() {
+                                history_tick.0 -= tick_delta;
                             }
 
-                            // Update and construct disk previews and details
+                            history.retain(|history_tick| history_tick.0 >= 0);
 
-                            for (disk_name, disk_data) in &self.resource_data.disks {
-                                if (!self.previews.disks.get_mut(&disk_data.name).is_some()) {
-                                    let mut new_preview = DiskPreview::new();
+                            history.push_back((
+                                HISTORY_TICKS as i32,
+                                self.logical_cores_usage_percent[index] as i32,
+                            ));
+                        }
 
-                                    self.previews
-                                        .disks
-                                        .insert(disk_data.name.clone(), new_preview);
-                                }
+                        // ram history
+
+                        for history_tick in &mut self.resource_history.ram {
+                            history_tick.0 -= tick_delta;
+                        }
+
+                        self.resource_history
+                            .ram
+                            .retain(|history_tick| history_tick.0 >= 0);
+
+                        self.resource_history.ram.push_back((
+                            HISTORY_TICKS as i32,
+                            self.resource_data.memory.ram_usage_percent as i32,
+                        ));
+
+                        // swap history
+
+                        for history_tick in &mut self.resource_history.swap {
+                            history_tick.0 -= tick_delta;
+                        }
+
+                        self.resource_history
+                            .swap
+                            .retain(|history_tick| history_tick.0 >= 0);
+
+                        self.resource_history.swap.push_back((
+                            HISTORY_TICKS as i32,
+                            self.resource_data.memory.swap_usage_percent as i32,
+                        ));
+
+                        // disk history
+
+                        for (disk_name, disk_data) in &self.resource_data.disks {
+                            // written
+
+                            let written_history = self
+                                .resource_history
+                                .disk_write
+                                .entry(disk_name.clone())
+                                .or_insert(VecDeque::new());
+
+                            for history_tick in &mut *written_history {
+                                history_tick.0 -= tick_delta;
                             }
 
-                            // cpu
+                            written_history.retain(|history_tick| history_tick.0 >= 0);
 
-                            let cpu_info = self.system_info.cpus();
+                            written_history
+                                .push_back((HISTORY_TICKS as i32, disk_data.written as i32));
 
-                            update_cpu_data(&mut self.resource_data.cpu, cpu_info, self.logical_core_count);
+                            // read
 
-                            match self.active_preview.resource {
-                                ResourceType::Cpu => {
-                                    // no in-depth data to update for cpu
-                                }
-                                ResourceType::Disk => {
-                                    let disk_name = self.active_preview.name.as_ref().unwrap();
+                            let read_history = self
+                                .resource_history
+                                .disk_read
+                                .entry(disk_name.clone())
+                                .or_insert(VecDeque::new());
 
-                                    let disk_data =
-                                        self.resource_data.disks.get_mut(disk_name).unwrap();
-                                    /*                                     let disk = &self.disk_info.
-
-                                    update_disk_data_in_depth(&mut disk_data, &disk_name, disk) */
-                                }
-                                _ => {}
+                            for history_tick in &mut *read_history {
+                                history_tick.0 -= tick_delta;
                             }
 
-                            // cpu usage
+                            read_history.retain(|history_tick| history_tick.0 >= 0);
 
-                            let cpus = self.system_info.cpus();
-                            // Relative to the number of logical cores. So 200% means 2 cores fully used
-                            let mut total_used: f32 = 0.;
-                            let mut total_frequency: u64 = 0;
+                            read_history.push_back((HISTORY_TICKS as i32, disk_data.read as i32));
+                        }
 
-                            for (index, cpu) in cpus.iter().enumerate() {
-                                let cpu_usage = cpu.cpu_usage();
-                                let frequency = cpu.frequency();
+                        // resource page
 
-                                self.logical_cores_usage_percent[index] = cpu_usage;
+                        update_resource_page(self);
 
-                                total_frequency += frequency;
-                                self.logical_cores_frequencies[index] = frequency;
+                        //
 
-                                total_used += cpu_usage;
-                            }
+                        println!("tick: {}", self.tick);
+                    }
+                    AppMessage::ResourcePageMessage(resource_page_message) => {
+                        // maybe this is good reason to split each page into its own message, since they each may have unique properties
 
-                            self.cpu_usage_percent = total_used / self.logical_core_count as f32;
+                        match resource_page_message {
+                            ResourcePageMessage::DiskPageMessage(disk_page_message) => {}
+                            ResourcePageMessage::CpuPageMessage(cpu_page_message) => {}
+                            ResourcePageMessage::MemoryPageMessage(memory_page_message) => {}
+                            ResourcePageMessage::ApplicationsPageMessage(
+                                applications_page_message,
+                            ) => {}
+                            _ => {}
+                        }
+                    }
+                    AppMessage::ResourceDetailsMessage(resource_details_message) => {
+                        // println!("message: {:?}", resource_details_message);
 
-                            self.cpu_frequency = total_frequency / self.logical_core_count as u64;
+                        /* let _ = self
+                            .main_content
+                            .update(resource_details_message)
+                            .map(AppMessage::ResourceDetailsMessage);
 
-                            // ram
-
-                            let total_used = self.system_info.used_memory();
-                            let total_capacity = self.system_info.total_memory();
-
-                            self.ram_usage_percent =
-                                total_used as f32 / total_capacity as f32 * 100.;
-
-                            // swap
-
-                            let total_used = self.system_info.used_swap();
-                            let total_capacity = self.system_info.total_swap();
-
-                            self.swap_usage_percent =
-                                total_used as f32 / total_capacity as f32 * 100.;
-
-                            // cpu history
-
-                            let tick_delta = self.tick - self.resource_history.last_tick;
-
-                            for history_tick in &mut self.resource_history.cpu {
-                                history_tick.0 -= tick_delta as i32;
-                            }
-
-                            self.resource_history
-                                .cpu
-                                .retain(|history_tick| history_tick.0 >= 0);
-
-                            self.resource_history
-                                .cpu
-                                .push_back((HISTORY_TICKS as i32, self.cpu_usage_percent as i32));
-
-                            // logical cores
-
-                            // logical cores history
-
-                            for (index, history) in
-                                self.resource_history.logical_cores.iter_mut().enumerate()
-                            {
-                                for history_tick in history.iter_mut() {
-                                    history_tick.0 -= tick_delta as i32;
-                                }
-
-                                history.retain(|history_tick| history_tick.0 >= 0);
-
-                                history.push_back((
-                                    HISTORY_TICKS as i32,
-                                    self.logical_cores_usage_percent[index] as i32,
-                                ));
-                            }
-
-                            // ram history
-
-                            for history_tick in &mut self.resource_history.ram {
-                                history_tick.0 -= tick_delta as i32;
-                            }
-
-                            self.resource_history
-                                .ram
-                                .retain(|history_tick| history_tick.0 >= 0);
-
-                            self.resource_history
-                                .ram
-                                .push_back((HISTORY_TICKS as i32, self.ram_usage_percent as i32));
-
-                            // swap history
-
-                            for history_tick in &mut self.resource_history.swap {
-                                history_tick.0 -= tick_delta as i32;
-                            }
-
-                            self.resource_history
-                                .swap
-                                .retain(|history_tick| history_tick.0 >= 0);
-
-                            self.resource_history
-                                .swap
-                                .push_back((HISTORY_TICKS as i32, self.swap_usage_percent as i32));
-
-                            //
-
-                            println!("tick: {}", self.tick);
-                            for element in self.sidebar_items.iter_mut() {
-                                element.on_tick(
-                                    &self.system_info,
+                        match resource_details_message {
+                            ResourceDetailsMessage::ToggleLogicalCores(_toggle_state) => {
+                                self.main_content.on_tick(
+                                    &mut self.system_info,
                                     self.cpu_usage_percent,
-                                    self.ram_usage_percent,
-                                    &self.disk_info,
-                                    &self.network_info,
+                                    self.physical_cpu_count,
+                                    self.logical_core_count,
+                                    self.cpu_brand.clone(),
+                                    self.cpu_frequency,
+                                    &self.resource_history,
+                                    &self.logical_cores_usage_percent,
+                                    &self.logical_cores_frequencies,
+                                    &self.resource_data,
+                                    &self.preferences,
+                                    &self.active_preview,
                                 );
                             }
-
-                            /* self.main_content.on_tick(
-                                &mut self.system_info,
-                                self.cpu_usage_percent,
-                                self.physical_cpu_count,
-                                self.logical_core_count,
-                                self.cpu_brand.clone(),
-                                self.cpu_frequency,
-                                &self.resource_history,
-                                &self.logical_cores_usage_percent,
-                                &self.logical_cores_frequencies,
-                                &self.resource_data,
-                                &self.preferences,
-                                &self.active_preview,
-                            ); */
-                        }
-                        AppMessage::ResourcePageMessage(resource_page_message) => {
-                            match resource_page_message {
-                                ResourcePageMessage::DiskPageMessage(disk_page_message) => {}
-                                ResourcePageMessage::CpuPageMessage(cpu_page_message) => {}
-                                ResourcePageMessage::MemoryPageMessage(memory_page_message) => {}
-                                ResourcePageMessage::ApplicationsPageMessage(
-                                    applications_page_message,
-                                ) => {}
-                                _ => {}
-                            }
-                        }
-                        AppMessage::ResourceDetailsMessage(resource_details_message) => {
-                            // println!("message: {:?}", resource_details_message);
-
-                            /* let _ = self
-                                .main_content
-                                .update(resource_details_message)
-                                .map(AppMessage::ResourceDetailsMessage);
-
-                            match resource_details_message {
-                                ResourceDetailsMessage::ToggleLogicalCores(_toggle_state) => {
-                                    self.main_content.on_tick(
-                                        &mut self.system_info,
-                                        self.cpu_usage_percent,
-                                        self.physical_cpu_count,
-                                        self.logical_core_count,
-                                        self.cpu_brand.clone(),
-                                        self.cpu_frequency,
-                                        &self.resource_history,
-                                        &self.logical_cores_usage_percent,
-                                        &self.logical_cores_frequencies,
-                                        &self.resource_data,
-                                        &self.preferences,
-                                        &self.active_preview,
-                                    );
-                                }
-                                _ => {}
-                            } */
-                        }
-                        AppMessage::SetResourceDetails(resource) => {
-                            /* if resource == self.main_content.resource {
-                                return;
-                            }
-
-                            self.main_content
-                                .apply_resource_type(resource, &self.preferences);
-                            self.main_content.on_tick(
-                                &mut self.system_info,
-                                self.cpu_usage_percent,
-                                self.physical_cpu_count,
-                                self.logical_core_count,
-                                self.cpu_brand.clone(),
-                                self.cpu_frequency,
-                                &self.resource_history,
-                                &self.logical_cores_usage_percent,
-                                &self.logical_cores_frequencies,
-                                &self.resource_data,
-                                &self.preferences,
-                                &self.active_preview,
-                            ); */
-                        }
-                        AppMessage::ResourcePreviewMessage(preview_message) => {
-                            match preview_message {
-                                ResourcePreviewMessage::ResourceDetailsFor(active_preview) => {
-                                    // We also need a way to toggle this off, ideally not being super complicated
-                                    // if let Some(preview) = self.previews.disks.get_mut(&key) {
-                                    //     preview.display_state = ResourcePreviewDisplayState::Active;
-                                    // };
-
-                                    self.active_preview = ActivePreview {
-                                        resource: active_preview.resource,
-                                        name: active_preview.name,
-                                    };
-
-                                    // change resource page to match preview
-
-                                    /* self.main_content
-                                    .apply_resource_type(active_preview.resource, &self.preferences) */
-                                }
-                            }
-                        }
-                        _ => {}
+                            _ => {}
+                        } */
                     }
-                })();
+                    AppMessage::SetResourceDetails(resource) => {
+                        /* if resource == self.main_content.resource {
+                            return;
+                        }
+
+                        self.main_content
+                            .apply_resource_type(resource, &self.preferences);
+                        self.main_content.on_tick(
+                            &mut self.system_info,
+                            self.cpu_usage_percent,
+                            self.physical_cpu_count,
+                            self.logical_core_count,
+                            self.cpu_brand.clone(),
+                            self.cpu_frequency,
+                            &self.resource_history,
+                            &self.logical_cores_usage_percent,
+                            &self.logical_cores_frequencies,
+                            &self.resource_data,
+                            &self.preferences,
+                            &self.active_preview,
+                        ); */
+                    }
+                    AppMessage::ResourcePreviewMessage(preview_message) => {
+                        match preview_message {
+                            ResourcePreviewMessage::ResourcePageFor(active_preview) => {
+                                // We also need a way to toggle this off, ideally not being super complicated
+                                // if let Some(preview) = self.previews.disks.get_mut(&key) {
+                                //     preview.display_state = ResourcePreviewDisplayState::Active;
+                                // };
+
+                                let active_preview = ActivePreview {
+                                    resource: active_preview.resource,
+                                    name: active_preview.name,
+                                };
+
+                                change_resource_page(self, &active_preview);
+
+                                self.active_preview = active_preview;
+
+                                update_resource_page(self);
+
+                                // change resource page to match preview
+
+                                /* self.main_content
+                                .apply_resource_type(active_preview.resource, &self.preferences) */
+                            }
+                        }
+                    }
+                    _ => {}
+                }
             }
         }
 
@@ -822,7 +871,18 @@ impl Application for App {
                                 &self.active_preview,
                                 &self.resource_data.cpu,
                             )
-                            .map(|message| AppMessage::ResourcePreviewMessage(message)),
+                            .map(AppMessage::ResourcePreviewMessage),
+                    );
+
+                    children.push(
+                        self.previews
+                            .memory
+                            .view(
+                                &self.preferences,
+                                &self.active_preview,
+                                &self.resource_data.memory,
+                            )
+                            .map(AppMessage::ResourcePreviewMessage),
                     );
 
                     for (disk_name, disk_preview) in &self.previews.disks {
@@ -831,7 +891,7 @@ impl Application for App {
                         children.push(
                             disk_preview
                                 .view(&self.preferences, &self.active_preview, disk_data)
-                                .map(|message| AppMessage::ResourcePreviewMessage(message)),
+                                .map(AppMessage::ResourcePreviewMessage),
                         );
                     }
 
@@ -885,10 +945,23 @@ impl Application for App {
                 let main_new = container({
                     let page: Element<_> = match &self.resource_page {
                         ResourcePage::Cpu(cpu_page) => cpu_page
-                            .view(&self.preferences, &self.resource_data.cpu, self.physical_core_count, self.logical_core_count, self.cpu_brand.clone())
+                            .view(
+                                &self.preferences,
+                                &self.resource_data.cpu,
+                                self.physical_core_count,
+                                self.logical_core_count,
+                                self.cpu_brand.clone(),
+                            )
                             .map(move |message| {
                                 AppMessage::ResourcePageMessage(
                                     ResourcePageMessage::CpuPageMessage(message),
+                                )
+                            }),
+                        ResourcePage::Memory(memory_page) => memory_page
+                            .view(&self.preferences, &self.resource_data.memory)
+                            .map(move |message| {
+                                AppMessage::ResourcePageMessage(
+                                    ResourcePageMessage::MemoryPageMessage(message),
                                 )
                             }),
                         ResourcePage::Disk(disk_page) => {
@@ -996,55 +1069,40 @@ pub enum ResourceType {
     Ethernet,
 }
 
-/// Updates the resource page without checking if it is already the desired page
-fn update_resource_page_unchecked(app: &mut App) {
-    match app.active_preview.resource {
+fn change_resource_page(app: &mut App, active_preview: &ActivePreview) {
+    match active_preview.resource {
+        ResourceType::Cpu => {
+            app.resource_page = ResourcePage::Cpu(CpuPage::new(&app.preferences));
+        }
         ResourceType::Disk => {
             app.resource_page = ResourcePage::Disk(DiskPage::new(&app.preferences));
         }
-        _ => {
-            println!("resource type not yet supported for resource page switching")
+        ResourceType::Memory => {
+            app.resource_page = ResourcePage::Memory(MemoryPage::new(&app.preferences));
         }
+        _ => {}
     }
 }
 
-pub fn update_disk_data(disk_data: &mut DiskData, disk_name: &String, disk: &Disk) {
-    disk_data.name = disk_name.clone();
-    disk_data.space_total = disk.total_space();
-    disk_data.space_used = disk_data.space_total - disk.available_space();
-    disk_data.read = 0;
-    disk_data.written = 0;
-    disk_data.kind = disk.kind();
-}
+fn update_resource_page(app: &mut App) {
+    match &mut app.resource_page {
+        ResourcePage::Cpu(cpu_page) => {
+            cpu_page.update_history(&app.resource_history);
+        }
+        ResourcePage::Memory(memory_page) => {
+            memory_page.update_history(&app.resource_history);
+        }
+        ResourcePage::Disk(disk_page) => {
+            for disk in &app.disk_info {
+                let disk_name = disk.name().to_str().unwrap_or("default").to_string();
 
-pub fn update_disk_data_in_depth(disk_data: &mut DiskData, disk_name: &String, disk: &Disk) {
-    let in_depth = DiskDataInDepth {
-        is_removable: disk.is_removable(),
-    };
+                let disk_data = app.resource_data.disks.get_mut(&disk_name).unwrap();
 
-    disk_data.in_depth = Some(in_depth);
-}
+                disk_data.update_in_depth(&disk_name, disk);
 
-pub fn update_cpu_data(cpu_data: &mut CpuData, cpu_info: &[sysinfo::Cpu], logical_core_count: u32) {
-    let mut total_used: f32 = 0.;
-    let mut total_frequency: u64 = 0;
-    let mut logical_cores_usage_percents: Vec<f32> = Vec::new();
-    let mut logical_cores_frequencies: Vec<u64> = Vec::new();
-
-    for (_, logical_core) in cpu_info.iter().enumerate() {
-        let cpu_usage = logical_core.cpu_usage();
-        let frequency = logical_core.frequency();
-
-        logical_cores_usage_percents.push(cpu_usage);
-
-        total_frequency += frequency;
-        logical_cores_frequencies.push(frequency);
-
-        total_used += cpu_usage;
+                disk_page.update_history(&app.active_preview, &app.resource_history)
+            }
+        }
+        _ => {}
     }
-
-    cpu_data.cpu_usage_percent = total_used / logical_core_count as f32;
-    cpu_data.frequency = total_frequency / logical_core_count as u64;
-    cpu_data.logical_cores_usage_percents = logical_cores_usage_percents;
-    cpu_data.logical_cores_frequencies = logical_cores_frequencies;
 }

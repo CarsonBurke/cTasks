@@ -6,7 +6,7 @@ use crate::{ActivePreview, ResourceType};
 
 #[derive(Debug, Clone)]
 pub enum ResourcePreviewMessage {
-    ResourceDetailsFor(ActivePreview),
+    ResourcePageFor(ActivePreview),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

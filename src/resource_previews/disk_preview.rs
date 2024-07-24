@@ -73,7 +73,7 @@ impl DiskPreview {
         .spacing(padding::PORTION).padding(padding::PORTION);
 
         let button = button(content)
-            .on_press(ResourcePreviewMessage::ResourceDetailsFor(ActivePreview {
+            .on_press(ResourcePreviewMessage::ResourcePageFor(ActivePreview {
                 resource: self.resource,
                 name: Some(data.name.clone()),
             }))
