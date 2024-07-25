@@ -214,7 +214,6 @@ struct App {
     sidebar_items: Vec<SidebarItemParent>,
     preferences: Preferences,
     resource_page: ResourcePage,
-    tick_interval: u64,
     system_info: System,
     physical_core_count: u32,
     logical_core_count: u32,
@@ -257,7 +256,6 @@ impl Application for App {
         let preferences = Preferences::new();
 
         let new_self = Self {
-            tick_interval: 1000,
             state: AppState::Loading,
             preferences,
             system_info,
@@ -322,6 +320,15 @@ impl Application for App {
                     AppMessage::Tick => {
                         self.resource_history.last_tick = self.tick;
                         self.tick += 1;
+
+                        // clean old custom resource data that won't necessarily be replaced
+
+                        self.resource_data.processes.clean_in_depth();
+                        self.resource_data.applications.clean_in_depth();
+                        
+                        for disk_data in &mut self.resource_data.disks.values_mut() {
+                            disk_data.clean_in_depth();
+                        }
 
                         // Change this to call specific to be more optimal
 
@@ -478,6 +485,7 @@ impl Application for App {
 
                         // resource page
 
+                        try_update_in_depth(self);
                         update_resource_page(self);
 
                         //
@@ -495,7 +503,8 @@ impl Application for App {
                             ResourcePageMessage::CpuPageMessage(cpu_page_message) => {
                                 match &mut self.resource_page {
                                     ResourcePage::Cpu(cpu_page) => {
-                                        cpu_page.update(cpu_page_message, &mut self.resource_data.cpu);
+                                        cpu_page
+                                            .update(cpu_page_message, &mut self.resource_data.cpu);
                                     }
                                     _ => {}
                                 }
@@ -536,6 +545,7 @@ impl Application for App {
 
                                 self.active_preview = active_preview;
 
+                                try_update_in_depth(self);
                                 update_resource_page(self);
 
                                 // change resource page to match preview
@@ -554,7 +564,7 @@ impl Application for App {
     }
 
     fn subscription(&self) -> Subscription<AppMessage> {
-        iced::time::every(std::time::Duration::from_millis(self.tick_interval))
+        iced::time::every(std::time::Duration::from_millis(self.preferences.tick_interval))
             .map(|_| AppMessage::Tick)
     }
 
@@ -854,7 +864,8 @@ fn change_resource_page(app: &mut App, active_preview: &ActivePreview) {
             app.resource_page = ResourcePage::Processes(ProcessesPage::new(&app.preferences));
         }
         ResourceType::Cpu => {
-            app.resource_page = ResourcePage::Cpu(CpuPage::new(&app.preferences, app.logical_core_count));
+            app.resource_page =
+                ResourcePage::Cpu(CpuPage::new(&app.preferences, app.logical_core_count));
         }
         ResourceType::Disk => {
             app.resource_page = ResourcePage::Disk(DiskPage::new(&app.preferences));
@@ -866,18 +877,36 @@ fn change_resource_page(app: &mut App, active_preview: &ActivePreview) {
     }
 }
 
-fn update_resource_page(app: &mut App) {
+fn try_update_in_depth(app: &mut App) {
     match &mut app.resource_page {
-        ResourcePage::Applications(applications_page) => {
+        ResourcePage::Applications(_) => {
             app.resource_data
                 .applications
                 .update_in_depth(&mut app.system_info);
         }
-        ResourcePage::Processes(processes_page) => {
+        ResourcePage::Processes(_) => {
             app.resource_data
                 .processes
                 .update_in_depth(&mut app.system_info);
         }
+        ResourcePage::Disk(_) => {
+            for disk in &app.disk_info {
+
+                // to optimize: check if disk name matches data we want to update
+
+                let disk_name = disk.name().to_str().unwrap_or("default").to_string();
+
+                let disk_data = app.resource_data.disks.get_mut(&disk_name).unwrap();
+
+                disk_data.update_in_depth(&disk_name, disk);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn update_resource_page(app: &mut App) {
+    match &mut app.resource_page {
         ResourcePage::Cpu(cpu_page) => {
             cpu_page.update_history(&app.resource_history);
         }
@@ -885,15 +914,7 @@ fn update_resource_page(app: &mut App) {
             memory_page.update_history(&app.resource_history);
         }
         ResourcePage::Disk(disk_page) => {
-            for disk in &app.disk_info {
-                let disk_name = disk.name().to_str().unwrap_or("default").to_string();
-
-                let disk_data = app.resource_data.disks.get_mut(&disk_name).unwrap();
-
-                disk_data.update_in_depth(&disk_name, disk);
-
-                disk_page.update_history(&app.active_preview, &app.resource_history)
-            }
+            disk_page.update_history(&app.active_preview, &app.resource_history)
         }
         _ => {}
     }

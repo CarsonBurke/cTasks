@@ -18,6 +18,10 @@ impl ApplicationsData {
         }
     }
 
+    pub fn clean_in_depth(&mut self) {
+        self.in_depth = InDepthApplicationsData::new();
+    }
+
     pub fn update_in_depth(&mut self, system_info: &mut System) {
         let mut applications = HashMap::new();
 
@@ -77,23 +81,25 @@ impl ProcessesData {
         }
     }
 
+    pub fn clean_in_depth(&mut self) {
+        self.in_depth = InDepthProcessesData::new();
+    }
+
     pub fn update_in_depth(&mut self, system_info: &mut System) {
         let mut processes = Vec::new();
 
         for (pid, process) in system_info.processes() {
             let disk_usage = process.disk_usage();
 
-            processes.push(
-                ProcessData {
-                    name: process.name().to_string(),
-                    pid: *pid,
-                    parent_pid: process.parent(),
-                    memory_usage: process.memory(),
-                    cpu_usage: process.cpu_usage(),
-                    disk_read: disk_usage.read_bytes,
-                    disk_written: disk_usage.written_bytes,
-                },
-            );
+            processes.push(ProcessData {
+                name: process.name().to_string(),
+                pid: *pid,
+                parent_pid: process.parent(),
+                memory_usage: process.memory(),
+                cpu_usage: process.cpu_usage(),
+                disk_read: disk_usage.read_bytes,
+                disk_written: disk_usage.written_bytes,
+            });
         }
 
         self.in_depth.processes = processes;
@@ -104,19 +110,29 @@ impl ProcessesData {
     pub fn sort_by_index(&mut self) {
         match self.sort_index {
             0 => {
-                self.in_depth.processes.sort_by_key(|process| process.name.to_lowercase());
+                self.in_depth
+                    .processes
+                    .sort_by_key(|process| process.name.to_lowercase());
             }
             1 => {
-                self.in_depth.processes.sort_by_key(|process| OrderedFloat(process.cpu_usage));
+                self.in_depth
+                    .processes
+                    .sort_by_key(|process| OrderedFloat(process.cpu_usage));
             }
             2 => {
-                self.in_depth.processes.sort_by_key(|process| process.memory_usage);
+                self.in_depth
+                    .processes
+                    .sort_by_key(|process| process.memory_usage);
             }
             3 => {
-                self.in_depth.processes.sort_by_key(|process| process.disk_read);
+                self.in_depth
+                    .processes
+                    .sort_by_key(|process| process.disk_read);
             }
             4 => {
-                self.in_depth.processes.sort_by_key(|process| process.disk_written);
+                self.in_depth
+                    .processes
+                    .sort_by_key(|process| process.disk_written);
             }
             _ => (), // No sorting
         };
@@ -217,10 +233,12 @@ impl DiskData {
             space_total: 0,
             space_used: 0,
             kind: DiskKind::Unknown(0),
-            in_depth: Some(DiskDataInDepth {
-                is_removable: false,
-            }),
+            in_depth: Some(DiskDataInDepth::new()),
         }
+    }
+
+    pub fn clean_in_depth(&mut self) {
+        self.in_depth = Some(DiskDataInDepth::new());
     }
 
     pub fn update(&mut self, disk_name: &String, disk: &Disk) {
@@ -244,6 +262,14 @@ impl DiskData {
 #[derive(Debug)]
 pub struct DiskDataInDepth {
     pub is_removable: bool,
+}
+
+impl DiskDataInDepth {
+    pub fn new() -> Self {
+        Self {
+            is_removable: false,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -276,7 +302,7 @@ pub struct MemoryData {
     pub swap_usage: u64,
     pub swap_total: u64,
     pub swap_usage_percent: f32,
-    pub in_depth: Option<MemoryDataInDepth>,
+    pub in_depth: Option<InDepthMemoryData>,
 }
 
 impl MemoryData {
@@ -288,7 +314,7 @@ impl MemoryData {
             swap_usage: 0,
             swap_total: 0,
             swap_usage_percent: 0.,
-            in_depth: Some(MemoryDataInDepth::new()),
+            in_depth: Some(InDepthMemoryData::new()),
         }
     }
 
@@ -310,11 +336,11 @@ impl MemoryData {
 }
 
 #[derive(Debug)]
-pub struct MemoryDataInDepth {
+pub struct InDepthMemoryData {
     pub is_removable: bool,
 }
 
-impl MemoryDataInDepth {
+impl InDepthMemoryData {
     fn new() -> Self {
         Self {
             is_removable: false,

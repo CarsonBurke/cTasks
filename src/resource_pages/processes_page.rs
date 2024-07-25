@@ -97,7 +97,7 @@ impl ProcessesPage {
         let processes_header_strings =
             vec!["Name", "CPU", "Memory", "Disk Read", "Disk Written", "Kill"];
 
-        let processes_headers = GridRow::with_elements({
+        /* let processes_headers = GridRow::with_elements({
             let mut elements = Vec::new();
 
             for (i, content) in processes_header_strings.iter().enumerate() {
@@ -134,7 +134,7 @@ impl ProcessesPage {
             }
 
             elements
-        });
+        }); */
 
         let processes_totals = grid_row!(
             row![
@@ -153,7 +153,7 @@ impl ProcessesPage {
         let main = container(
             Grid::with_rows({
                 let mut rows = Vec::new();
-                rows.push(processes_headers);
+                /* rows.push(processes_headers); */
                 rows.push(processes_totals);
 
                 for (i, process_data) in (0_u32..).zip(data.in_depth.processes.iter()) {

@@ -14,11 +14,13 @@ pub struct Preferences {
     pub chart_y_axis_labels: bool,
     pub chart_y_axis_major_grid_lines: usize,
     pub byte_base: ByteBase,
+    pub tick_interval: u64,
 }
 
 impl Default for Preferences {
     fn default() -> Self {
         Self {
+            tick_interval: 1000,
             percent_precision: 1,
             history_ticks: 30,
             display_state: DisplayState::Shown,
