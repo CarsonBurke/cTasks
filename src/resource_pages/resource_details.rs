@@ -329,12 +329,8 @@ impl ResourceDetails {
                     cpu_details.cpu_chart.data_points = resource_history.cpu.clone();
                 }
             }
-            ResourceType::Gpu => {}
-            ResourceType::Disk => {
-                
-            }
-            ResourceType::Wifi => {}
-            ResourceType::Ethernet => {}
+            _ => {}
+            
         };
     }
 
@@ -687,6 +683,12 @@ impl ResourceDetails {
                 container.into()
             }
             ResourceType::Ethernet => {
+                let content = row![];
+
+                let container = container(content);
+                container.into()
+            }
+            _ => {
                 let content = row![];
 
                 let container = container(content);
