@@ -869,6 +869,7 @@ pub enum ResourceType {
     Disk,
     Wifi,
     Ethernet,
+    Battery,
 }
 
 fn change_resource_page(app: &mut App, active_preview: &ActivePreview) {

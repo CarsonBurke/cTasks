@@ -30,7 +30,7 @@ pub struct BatteryPreview {
 impl Default for BatteryPreview {
     fn default() -> Self {
         Self {
-            resource: ResourceType::Cpu,
+            resource: ResourceType::Battery,
             display_state: ResourcePreviewDisplayState::Shown,
         }
     }
