@@ -5,3 +5,4 @@ pub mod disk_page;
 pub mod cpu_page;
 pub mod resource_details;
 pub mod processes_page;
+pub mod battery_page;

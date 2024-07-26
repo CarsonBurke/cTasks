@@ -272,14 +272,13 @@ impl DiskDataInDepth {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct BatteryData {
-    pub index: String,
     pub vendor: String,
     pub model: String,
     /// Number of cycles the battery has gone through
-    pub cycles: u32,
-    pub temperature: ThermodynamicTemperature,
+    pub cycles: Option<u32>,
+    pub temperature: Option<ThermodynamicTemperature>,
     pub energy_rate: Power,
     pub designed_capacity: Energy,
     pub current_capacity: Energy,
@@ -292,6 +291,35 @@ pub struct BatteryData {
     pub state_of_health: battery::units::Ratio,
     pub state_of_charge: battery::units::Ratio,
     pub technology: battery::Technology,
+}
+
+impl BatteryData {
+    pub fn new() -> Self {
+        Self {
+            ..Default::default()
+        }
+    }
+
+    pub fn update(&mut self, battery: &battery::Battery) {
+        self.vendor = battery.vendor().unwrap_or("unknown").to_string();
+        self.model = battery.model().unwrap_or("unknown").to_string();
+        self.cycles = battery.cycle_count();
+        self.temperature = battery.temperature();
+        self.energy_rate = battery.energy_rate();
+        self.designed_capacity = battery.energy_full_design();
+        self.current_capacity = battery.energy_full();
+        self.energy = battery.energy();
+        self.voltage = battery.voltage();
+        self.state = battery.state();
+        self.time_to_behaviour = Some(battery.time_to_empty().unwrap_or(
+            battery.time_to_full().unwrap_or(battery::units::Time {
+                ..Default::default()
+            }),
+        ));
+        self.state_of_health = battery.state_of_health();
+        self.state_of_charge = battery.state_of_charge();
+        self.technology = battery.technology();
+    }
 }
 
 #[derive(Debug)]
@@ -353,7 +381,7 @@ pub struct ResourceData {
     pub applications: ApplicationsData,
     pub processes: ProcessesData,
     pub disks: HashMap<String, DiskData>,
-    pub batteries: HashMap<String, BatteryData>,
+    pub battery: BatteryData,
     pub cpu: CpuData,
     pub memory: MemoryData,
 }
@@ -364,7 +392,7 @@ impl ResourceData {
             applications: ApplicationsData::new(),
             processes: ProcessesData::new(),
             disks: HashMap::new(),
-            batteries: HashMap::new(),
+            battery: BatteryData::new(),
             cpu: CpuData::new(),
             memory: MemoryData::new(),
         }

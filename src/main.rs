@@ -6,8 +6,7 @@ use std::{
 };
 
 use battery::{
-    units::{ElectricPotential, Energy, Power, ThermodynamicTemperature},
-    Battery,
+    units::{ElectricPotential, Energy, Power, ThermodynamicTemperature}, Batteries, Battery
 };
 use constants::{padding, DisplayState, ICON, PERCENT_PRECISION};
 use iced::{
@@ -50,12 +49,7 @@ use resource_pages::{
 };
 
 use resource_previews::{
-    applications_preview::ApplicationsPreview,
-    cpu_preview::{self, CpuPreview},
-    disk_preview::DiskPreview,
-    memory_preview::MemoryPreview,
-    processes_preview::ProcessesPreview,
-    resource_preview::ResourcePreviewMessage,
+    applications_preview::ApplicationsPreview, battery_preview::BatteryPreview, cpu_preview::{self, CpuPreview}, disk_preview::DiskPreview, memory_preview::MemoryPreview, processes_preview::ProcessesPreview, resource_preview::ResourcePreviewMessage
 };
 use sidebar::sidebar_item::{SidebarItemParent, SidebarItemParentMessage};
 use styles::container::{main_content, sidebar};
@@ -148,6 +142,7 @@ pub struct ResourcePreviews {
     pub cpu: CpuPreview,
     pub memory: MemoryPreview,
     pub disks: HashMap<String, DiskPreview>,
+    pub battery: BatteryPreview,
 }
 
 #[derive(Debug)]
@@ -226,6 +221,7 @@ struct App {
     resource_data: ResourceData,
     previews: ResourcePreviews,
     active_preview: ActivePreview,
+    battery_manager: battery::Manager,
 }
 
 async fn load() -> Result<(), String> {
@@ -274,6 +270,7 @@ impl Application for App {
             previews: ResourcePreviews::default(),
             disk_info: Disks::new(),
             network_info: Networks::new(),
+            battery_manager: battery::Manager::new().unwrap(),
         };
 
         let command = Command::batch(vec![
@@ -379,6 +376,17 @@ impl Application for App {
 
                         // ram
                         self.resource_data.memory.update(&self.system_info);
+
+                        // battery
+                        // TODO: should probably store batteries similar to disk_info                        
+
+                        for battery in self.battery_manager.batteries().unwrap() {
+                            let Ok(battery) = battery else {
+                                continue;
+                            };
+
+                            self.resource_data.battery.update(&battery);
+                        }
 
                         // cpu history
 
@@ -666,6 +674,14 @@ impl Application for App {
                                 .map(AppMessage::ResourcePreviewMessage),
                         );
                     }
+
+                    children.push(
+                        self.previews.battery.view(
+                            &self.preferences,
+                                &self.active_preview,
+                                &self.resource_data.battery,
+                        ).map(AppMessage::ResourcePreviewMessage),
+                    );
 
                     children
                 })
