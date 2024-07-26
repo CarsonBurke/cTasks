@@ -97,7 +97,7 @@ impl ProcessesPage {
         let processes_header_strings =
             vec!["Name", "CPU", "Memory", "Disk Read", "Disk Written", "Kill"];
 
-        /* let processes_headers = GridRow::with_elements({
+        let processes_headers = GridRow::with_elements({
             let mut elements = Vec::new();
 
             for (i, content) in processes_header_strings.iter().enumerate() {
@@ -134,27 +134,12 @@ impl ProcessesPage {
             }
 
             elements
-        }); */
-
-        let processes_totals = grid_row!(
-            row![
-                text(iced_aw::graphics::icons::BootstrapIcon::BarChart.to_string())
-                    .font(iced_aw::BOOTSTRAP_FONT),
-                text("Total")
-            ]
-            .spacing(5),
-            text("CPU"),
-            text("Memory"),
-            text("Read"),
-            text("Written"),
-            text("Action"),
-        );
+        });
 
         let main = container(
             Grid::with_rows({
                 let mut rows = Vec::new();
-                /* rows.push(processes_headers); */
-                rows.push(processes_totals);
+                rows.push(processes_headers);
 
                 for (i, process_data) in (0_u32..).zip(data.in_depth.processes.iter()) {
                     let is_odd = i % 2 == 1;
