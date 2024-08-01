@@ -6,7 +6,8 @@ use std::{
 };
 
 use battery::{
-    units::{ElectricPotential, Energy, Power, ThermodynamicTemperature}, Batteries, Battery
+    units::{ElectricPotential, Energy, Power, ThermodynamicTemperature},
+    Batteries, Battery,
 };
 use constants::{padding, DisplayState, ICON, PERCENT_PRECISION};
 use iced::{
@@ -41,6 +42,7 @@ use iced_aw::{
 use preferences::Preferences;
 use resource_pages::{
     applications_page::{self, ApplicationsPage, ApplicationsPageMessage},
+    battery_page::{BatteryPage, BatteryPageMessage},
     cpu_page::{CpuPage, CpuPageMessage},
     disk_page::{DiskPage, DiskPageMessage},
     memory_page::{MemoryPage, MemoryPageMessage},
@@ -49,7 +51,13 @@ use resource_pages::{
 };
 
 use resource_previews::{
-    applications_preview::ApplicationsPreview, battery_preview::BatteryPreview, cpu_preview::{self, CpuPreview}, disk_preview::DiskPreview, memory_preview::MemoryPreview, processes_preview::ProcessesPreview, resource_preview::ResourcePreviewMessage
+    applications_preview::ApplicationsPreview,
+    battery_preview::BatteryPreview,
+    cpu_preview::{self, CpuPreview},
+    disk_preview::DiskPreview,
+    memory_preview::MemoryPreview,
+    processes_preview::ProcessesPreview,
+    resource_preview::ResourcePreviewMessage,
 };
 use sidebar::sidebar_item::{SidebarItemParent, SidebarItemParentMessage};
 use styles::container::{main_content, sidebar};
@@ -117,6 +125,7 @@ pub struct ResourceHistory {
     pub vram: VecDeque<(i32, i32)>,
     pub wifi: VecDeque<(i32, i32)>,
     pub ethernet: VecDeque<(i32, i32)>,
+    pub battery_charge: VecDeque<(i32, i32)>,
 }
 
 impl ResourceHistory {
@@ -153,6 +162,7 @@ pub enum ResourcePage {
     Memory(MemoryPage),
     Applications(ApplicationsPage),
     Processes(ProcessesPage),
+    Battery(BatteryPage),
 }
 
 #[derive(Debug)]
@@ -177,6 +187,7 @@ pub enum ResourcePageMessage {
     MemoryPageMessage(MemoryPageMessage),
     ApplicationsPageMessage(ApplicationsPageMessage),
     ProcessesPageMessage(ProcessesPageMessage),
+    BatteryPageMessage(BatteryPageMessage),
 }
 
 #[derive(Debug, Clone)]
@@ -322,7 +333,7 @@ impl Application for App {
 
                         self.resource_data.processes.clean_in_depth();
                         self.resource_data.applications.clean_in_depth();
-                        
+
                         for disk_data in &mut self.resource_data.disks.values_mut() {
                             disk_data.clean_in_depth();
                         }
@@ -378,7 +389,7 @@ impl Application for App {
                         self.resource_data.memory.update(&self.system_info);
 
                         // battery
-                        // TODO: should probably store batteries similar to disk_info                        
+                        // TODO: should probably store batteries similar to disk_info
 
                         for battery in self.battery_manager.batteries().unwrap() {
                             let Ok(battery) = battery else {
@@ -491,6 +502,21 @@ impl Application for App {
                             read_history.push_back((HISTORY_TICKS as i32, disk_data.read as i32));
                         }
 
+                        // battery history
+
+                        for history_tick in &mut self.resource_history.battery_charge {
+                            history_tick.0 -= tick_delta;
+                        }
+
+                        self.resource_history
+                            .battery_charge
+                            .retain(|history_tick| history_tick.0 >= 0);
+
+                        self.resource_history.battery_charge.push_back((
+                            HISTORY_TICKS as i32,
+                            (self.resource_data.battery.state_of_charge.value * 100.) as i32,
+                        ));
+
                         // resource page
 
                         try_update_in_depth(self);
@@ -572,8 +598,10 @@ impl Application for App {
     }
 
     fn subscription(&self) -> Subscription<AppMessage> {
-        iced::time::every(std::time::Duration::from_millis(self.preferences.tick_interval))
-            .map(|_| AppMessage::Tick)
+        iced::time::every(std::time::Duration::from_millis(
+            self.preferences.tick_interval,
+        ))
+        .map(|_| AppMessage::Tick)
     }
 
     fn view(&self) -> Element<AppMessage> {
@@ -676,11 +704,14 @@ impl Application for App {
                     }
 
                     children.push(
-                        self.previews.battery.view(
-                            &self.preferences,
+                        self.previews
+                            .battery
+                            .view(
+                                &self.preferences,
                                 &self.active_preview,
                                 &self.resource_data.battery,
-                        ).map(AppMessage::ResourcePreviewMessage),
+                            )
+                            .map(AppMessage::ResourcePreviewMessage),
                     );
 
                     children
@@ -785,6 +816,13 @@ impl Application for App {
                                 )
                             })
                         }
+                        ResourcePage::Battery(battery_page) => battery_page
+                            .view(&self.preferences, &self.resource_data.battery)
+                            .map(move |message| {
+                                AppMessage::ResourcePageMessage(
+                                    ResourcePageMessage::BatteryPageMessage(message),
+                                )
+                            }),
                         _ => text(String::from("Error: failed to match resource")).into(),
                     };
 
@@ -890,6 +928,9 @@ fn change_resource_page(app: &mut App, active_preview: &ActivePreview) {
         ResourceType::Memory => {
             app.resource_page = ResourcePage::Memory(MemoryPage::new(&app.preferences));
         }
+        ResourceType::Battery => {
+            app.resource_page = ResourcePage::Battery(BatteryPage::new(&app.preferences));
+        }
         _ => {}
     }
 }
@@ -908,7 +949,6 @@ fn try_update_in_depth(app: &mut App) {
         }
         ResourcePage::Disk(_) => {
             for disk in &app.disk_info {
-
                 // to optimize: check if disk name matches data we want to update
 
                 let disk_name = disk.name().to_str().unwrap_or("default").to_string();
@@ -932,6 +972,9 @@ fn update_resource_page(app: &mut App) {
         }
         ResourcePage::Disk(disk_page) => {
             disk_page.update_history(&app.active_preview, &app.resource_history)
+        }
+        ResourcePage::Battery(battery_page) => {
+            battery_page.update_history(&app.resource_history);
         }
         _ => {}
     }
