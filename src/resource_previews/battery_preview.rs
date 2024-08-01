@@ -8,7 +8,7 @@ use sysinfo::{Disk, DiskKind};
 
 use crate::{
     constants::{custom_theme, font_sizes, padding},
-    general_widgets::icons::bootstrap_icon,
+    general_widgets::icons::{battery_icon, bootstrap_icon},
     preferences::Preferences,
     styles,
     types::resource_data::{BatteryData, CpuData},
@@ -52,10 +52,10 @@ impl BatteryPreview {
         let content = column![
             row![
                 preview_header(
-                    bootstrap_icon(BootstrapIcon::BatteryHalf),
+                    battery_icon(data.state),
                     text("Battery").size(font_sizes::H2)
                 ),
-                text(format!(/* "{:.1}%",  */"{:.1?}%", data.state_of_charge * 100.))
+                text(format!(/* "{:.1}%",  */"{:.0?}%", data.state_of_charge * 100.))
                     .style(theme::Text::Color(custom_theme::GREY_TEXT))
                     .size(font_sizes::P),
             ]

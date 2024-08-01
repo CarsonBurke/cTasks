@@ -11,7 +11,7 @@ use crate::{
         sizings::{self, DEFAULT_CHART_HEIGHT},
     },
     general_widgets::{
-        icons::bootstrap_icon,
+        icons::{battery_icon, bootstrap_icon},
         section::{section, section_box, section_box_headless},
         seperators::seperator_background_1,
         split_table_double::split_table_double,
@@ -67,8 +67,8 @@ impl BatteryPage {
         let charge_details =
             section_box(
                 (
-                    bootstrap_icon(BootstrapIcon::Memory),
-                    text(String::from("Random Access Memory")),
+                    battery_icon(data.state),
+                    text(String::from("Battery")),
                     row![],
                 ),
                 {
@@ -77,9 +77,15 @@ impl BatteryPage {
                             BatteryPageMessage::ResourceChartMessage(message)
                         })),
                         seperator_background_1(),
-                        split_table_single(vec![(
-                            text("Percent charge".to_string()),
-                            text(format!("{:.1?}%", data.state_of_charge * 100.))
+                        split_table_double(vec![(
+                            (
+                                text("Percent charge".to_string()),
+                                text(format!("{:.1?}%", data.state_of_charge * 100.))
+                            ),
+                            (
+                                text("Time to charge".to_string()),
+                                text("unknown")
+                            )
                         )]),
                     ]
                 },
@@ -111,6 +117,10 @@ impl BatteryPage {
             ),
             column![split_table_single(vec![
                 (
+                    text("Charge state".to_string()),
+                    text(data.state)
+                ),
+                (
                     text(String::from("Designed capacity")),
                     text(format!("{}", data.designed_capacity.value)),
                 ),
@@ -135,6 +145,18 @@ impl BatteryPage {
                 (
                     text(String::from("Health")),
                     text(format!("{:.0}%", data.state_of_health.value * 100.)),
+                ),
+                (
+                    text(String::from("Vendor")),
+                    text(data.vendor.clone()),
+                ),
+                (
+                    text(String::from("Model")),
+                    text(data.model.clone()),
+                ),
+                (
+                    text(String::from("Technology")),
+                    text(data.technology),
                 ),
             ])],
         );
